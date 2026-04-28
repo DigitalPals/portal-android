@@ -7,9 +7,14 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import org.json.JSONObject
 import java.security.KeyStore
+import java.security.KeyPairGenerator
+import java.security.PrivateKey
+import java.security.spec.MGF1ParameterSpec
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.spec.OAEPParameterSpec
+import javax.crypto.spec.PSource
 import javax.crypto.spec.GCMParameterSpec
 
 class PortalStore(context: Context) {
@@ -43,6 +48,73 @@ class PortalStore(context: Context) {
         prefs.edit().remove("tokens").apply()
     }
 
+    fun loadVaultSecret(): String? {
+        val encrypted = prefs.getString("vault_secret", null) ?: return null
+        return decrypt(encrypted)
+    }
+
+    fun saveVaultSecret(secret: String) {
+        require(secret.isNotBlank()) { "Vault secret is required" }
+        prefs.edit().putString("vault_secret", encrypt(secret.trim())).apply()
+    }
+
+    fun clearVaultSecret() {
+        prefs.edit().remove("vault_secret").apply()
+    }
+
+    fun loadVaultEnrollmentId(): String? =
+        prefs.getString("vault_enrollment_id", null)
+
+    fun saveVaultEnrollmentId(id: String) {
+        prefs.edit().putString("vault_enrollment_id", id).apply()
+    }
+
+    fun clearVaultEnrollmentId() {
+        prefs.edit().remove("vault_enrollment_id").apply()
+    }
+
+    fun clearVaultEnrollmentKey() {
+        val keyStore = keyStore()
+        if (keyStore.containsAlias(VAULT_ENROLLMENT_KEY_ALIAS)) {
+            keyStore.deleteEntry(VAULT_ENROLLMENT_KEY_ALIAS)
+        }
+    }
+
+    fun vaultEnrollmentPublicKeyBase64(): String {
+        ensureVaultEnrollmentKey()
+        val certificate = keyStore().getCertificate(VAULT_ENROLLMENT_KEY_ALIAS)
+            ?: throw IllegalStateException("Vault enrollment key was not created")
+        return Base64.encodeToString(certificate.publicKey.encoded, Base64.NO_WRAP)
+    }
+
+    fun decryptVaultEnrollmentSecret(encryptedSecretBase64: String): String {
+        val entry = keyStore().getEntry(VAULT_ENROLLMENT_KEY_ALIAS, null) as? KeyStore.PrivateKeyEntry
+            ?: throw IllegalStateException("Vault enrollment key was not created")
+        val cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
+        cipher.init(
+            Cipher.DECRYPT_MODE,
+            entry.privateKey as PrivateKey,
+            OAEPParameterSpec(
+                "SHA-256",
+                "MGF1",
+                MGF1ParameterSpec.SHA1,
+                PSource.PSpecified.DEFAULT,
+            ),
+        )
+        val plaintext = cipher.doFinal(Base64.decode(encryptedSecretBase64, Base64.NO_WRAP))
+        return String(plaintext, Charsets.UTF_8)
+    }
+
+    fun loadOrCreateVaultSecret(vault: HubVaultConfig): String {
+        loadVaultSecret()?.let { return it }
+        require(!vault.hasItems) {
+            "Portal vault is locked because no vault secret is stored on this Android device"
+        }
+        val secret = PortalVaultCrypto.newVaultSecret()
+        saveVaultSecret(secret)
+        return secret
+    }
+
     fun saveSyncSnapshot(raw: String) {
         prefs.edit().putString("sync_snapshot", raw).apply()
     }
@@ -69,7 +141,7 @@ class PortalStore(context: Context) {
     }
 
     private fun secretKey(): SecretKey {
-        val keyStore = KeyStore.getInstance("AndroidKeyStore").also { it.load(null) }
+        val keyStore = keyStore()
         val existing = keyStore.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry
         if (existing != null) {
             return existing.secretKey
@@ -89,7 +161,30 @@ class PortalStore(context: Context) {
         return generator.generateKey()
     }
 
+    private fun ensureVaultEnrollmentKey() {
+        if (keyStore().containsAlias(VAULT_ENROLLMENT_KEY_ALIAS)) return
+        val generator = KeyPairGenerator.getInstance(
+            KeyProperties.KEY_ALGORITHM_RSA,
+            "AndroidKeyStore",
+        )
+        generator.initialize(
+            KeyGenParameterSpec.Builder(
+                VAULT_ENROLLMENT_KEY_ALIAS,
+                KeyProperties.PURPOSE_DECRYPT,
+            )
+                .setKeySize(2048)
+                .setDigests(KeyProperties.DIGEST_SHA256, KeyProperties.DIGEST_SHA1)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_RSA_OAEP)
+                .build(),
+        )
+        generator.generateKeyPair()
+    }
+
+    private fun keyStore(): KeyStore =
+        KeyStore.getInstance("AndroidKeyStore").also { it.load(null) }
+
     companion object {
         private const val KEY_ALIAS = "portal_hub_tokens"
+        private const val VAULT_ENROLLMENT_KEY_ALIAS = "portal_vault_enrollment_rsa"
     }
 }

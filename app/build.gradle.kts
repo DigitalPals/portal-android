@@ -384,6 +384,8 @@ dependencies {
     implementation(libs.androidx.biometric)
     implementation(libs.androidx.core)
     implementation(libs.okhttp)
+    implementation(libs.bouncycastle)
+    implementation(libs.tink)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

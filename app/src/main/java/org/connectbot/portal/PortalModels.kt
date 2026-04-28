@@ -100,10 +100,13 @@ data class HubSyncState(
         }
 
     val vaultKeyCount: Int
-        get() = services["vault"]?.payload?.optJSONArray("keys")?.length() ?: 0
+        get() = vault.keys.size
 
     val vaultSecretCount: Int
-        get() = services["vault"]?.payload?.optJSONArray("secrets")?.length() ?: 0
+        get() = vault.secrets.size
+
+    val vault: HubVaultConfig
+        get() = HubVaultConfig.fromJson(services["vault"]?.payload)
 }
 
 fun JSONObject.objectMap(name: String): Map<String, JSONObject> {

@@ -1,10 +1,16 @@
 package org.connectbot.portal
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,12 +30,16 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,6 +50,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -68,7 +79,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import java.util.UUID
 
 class PortalMainActivity : ComponentActivity() {
     private lateinit var viewModel: PortalViewModel
@@ -112,6 +122,8 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     private val _state = MutableStateFlow(
         PortalUiState(
             hubUrl = store.hubUrl.ifBlank { "https://portal-hub.example.ts.net" },
+            vaultSecretStored = store.loadVaultSecret() != null,
+            vaultEnrollmentId = store.loadVaultEnrollmentId(),
         ),
     )
     val state: StateFlow<PortalUiState> = _state
@@ -193,6 +205,8 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
                         hosts = sync.hosts,
                         sessions = sessions,
                         selected = if (it.selected == PortalTab.Setup) PortalTab.Hosts else it.selected,
+                        vaultSecretStored = store.loadVaultSecret() != null,
+                        vaultEnrollmentId = store.loadVaultEnrollmentId(),
                         error = null,
                     )
                 }
@@ -209,7 +223,11 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         terminal = null
         store.clearTokens()
         _state.update {
-            PortalUiState(hubUrl = store.hubUrl.ifBlank { it.hubUrl })
+            PortalUiState(
+                hubUrl = store.hubUrl.ifBlank { it.hubUrl },
+                vaultSecretStored = store.loadVaultSecret() != null,
+                vaultEnrollmentId = store.loadVaultEnrollmentId(),
+            )
         }
     }
 
@@ -218,7 +236,284 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
             _state.update { it.copy(error = "Only SSH hosts with Portal Hub enabled can be opened on Android") }
             return
         }
-        openTerminal(HubClient.terminalTarget(host), "${host.targetUser}@${host.hostname}")
+        val target = HubClient.terminalTarget(host)
+        val vaultKeyId = host.vaultKeyId
+        if (vaultKeyId.isNullOrBlank()) {
+            openTerminal(target, "${host.targetUser}@${host.hostname}")
+            return
+        }
+        val vault = state.value.sync?.vault
+        val key = vault?.findKey(vaultKeyId)
+        val secret = store.loadVaultSecret()
+        if (vault == null || key == null) {
+            _state.update { it.copy(error = "Vault key $vaultKeyId was not found in the synced vault") }
+            return
+        }
+        if (secret == null) {
+            _state.update { it.copy(error = "Vault is locked. Store this vault's secret before opening ${host.name}.") }
+            return
+        }
+        try {
+            openTerminal(
+                target.copy(privateKey = PortalVaultCrypto.decryptPrivateKey(key, secret)),
+                "${host.targetUser}@${host.hostname}",
+            )
+        } catch (error: Throwable) {
+            _state.update { it.copy(error = error.message ?: error.toString()) }
+        }
+    }
+
+    fun updateVaultSecretInput(value: String) {
+        _state.update { it.copy(vaultSecretInput = value, error = null) }
+    }
+
+    fun saveVaultSecret() {
+        try {
+            val secret = state.value.vaultSecretInput.trim()
+            validateVaultSecret(secret, state.value.sync?.vault ?: HubVaultConfig())
+            store.saveVaultSecret(secret)
+            _state.update { it.copy(vaultSecretStored = true, vaultSecretInput = "", error = null) }
+        } catch (error: Throwable) {
+            _state.update { it.copy(error = error.message ?: error.toString()) }
+        }
+    }
+
+    fun createVaultSecret() {
+        try {
+            val vault = state.value.sync?.vault ?: HubVaultConfig()
+            val secret = store.loadOrCreateVaultSecret(vault)
+            _state.update {
+                it.copy(
+                    vaultSecretStored = true,
+                    vaultSecretInput = "",
+                    error = null,
+                    vaultActionMessage = "Local vault secret is ready (${secret.length} characters)",
+                )
+            }
+        } catch (error: Throwable) {
+            _state.update { it.copy(error = error.message ?: error.toString()) }
+        }
+    }
+
+    fun forgetVaultSecret() {
+        store.clearVaultSecret()
+        _state.update { it.copy(vaultSecretStored = false, vaultSecretInput = "", vaultActionMessage = "Local vault secret forgotten") }
+    }
+
+    fun requestVaultUnlock() {
+        viewModelScope.launch {
+            runBusy {
+                val publicKey = store.vaultEnrollmentPublicKeyBase64()
+                val deviceName = listOf(Build.MANUFACTURER, Build.MODEL)
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
+                    .ifBlank { "Android device" }
+                val enrollment = client.createVaultEnrollment(deviceName, publicKey)
+                store.saveVaultEnrollmentId(enrollment.id)
+                _state.update {
+                    it.copy(
+                        vaultEnrollmentId = enrollment.id,
+                        vaultEnrollmentStatus = enrollment.status,
+                        vaultActionMessage = "Vault access requested. Approve ${enrollment.deviceName} in Portal desktop.",
+                        error = null,
+                    )
+                }
+            }
+        }
+    }
+
+    fun checkVaultUnlock() {
+        val id = store.loadVaultEnrollmentId()
+        if (id.isNullOrBlank()) {
+            _state.update { it.copy(error = "No vault access request is pending") }
+            return
+        }
+        viewModelScope.launch {
+            runBusy {
+                val enrollment = client.loadVaultEnrollment(id)
+                handleVaultEnrollment(enrollment)
+            }
+        }
+    }
+
+    fun resetVaultUnlockRequest() {
+        store.clearVaultEnrollmentId()
+        store.clearVaultEnrollmentKey()
+        _state.update {
+            it.copy(
+                vaultEnrollmentId = null,
+                vaultEnrollmentStatus = null,
+                vaultActionMessage = "Vault access request reset",
+                error = null,
+            )
+        }
+    }
+
+    fun copyVaultSecret() {
+        val secret = store.loadVaultSecret()
+        if (secret == null) {
+            _state.update { it.copy(error = "No local vault secret is stored") }
+            return
+        }
+        val clipboard = getApplication<android.app.Application>()
+            .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Portal vault secret", secret))
+        _state.update { it.copy(vaultActionMessage = "Copied local vault secret", error = null) }
+    }
+
+    private fun handleVaultEnrollment(enrollment: VaultEnrollment) {
+        if (enrollment.status != "approved") {
+            _state.update {
+                it.copy(
+                    vaultEnrollmentId = enrollment.id,
+                    vaultEnrollmentStatus = enrollment.status,
+                    vaultActionMessage = "Vault access request is ${enrollment.status}",
+                    error = null,
+                )
+            }
+            return
+        }
+        val encrypted = enrollment.encryptedSecretBase64
+            ?: throw IllegalStateException("Approved vault request did not include an encrypted unlock key")
+        val secret = try {
+            store.decryptVaultEnrollmentSecret(encrypted)
+        } catch (error: Throwable) {
+            store.clearVaultEnrollmentId()
+            store.clearVaultEnrollmentKey()
+            _state.update {
+                it.copy(
+                    vaultEnrollmentId = null,
+                    vaultEnrollmentStatus = null,
+                    vaultActionMessage = null,
+                )
+            }
+            throw IllegalStateException(
+                "Vault unlock failed. Request vault access again and approve the new request in Portal desktop.",
+                error,
+            )
+        }
+        validateVaultSecret(secret, state.value.sync?.vault ?: HubVaultConfig())
+        store.saveVaultSecret(secret)
+        store.clearVaultEnrollmentId()
+        _state.update {
+            it.copy(
+                vaultSecretStored = true,
+                vaultSecretInput = "",
+                vaultEnrollmentId = null,
+                vaultEnrollmentStatus = enrollment.status,
+                vaultActionMessage = "Vault unlock key stored on this device",
+                error = null,
+            )
+        }
+    }
+
+    fun openAddVaultKey() {
+        _state.update {
+            it.copy(
+                showAddVaultKey = true,
+                newVaultKeyName = "",
+                newVaultPrivateKey = "",
+                vaultActionMessage = null,
+                error = null,
+            )
+        }
+    }
+
+    fun cancelAddVaultKey() {
+        _state.update { it.copy(showAddVaultKey = false, newVaultKeyName = "", newVaultPrivateKey = "") }
+    }
+
+    fun updateNewVaultKeyName(value: String) {
+        _state.update { it.copy(newVaultKeyName = value, error = null) }
+    }
+
+    fun updateNewVaultPrivateKey(value: String) {
+        _state.update { it.copy(newVaultPrivateKey = value, error = null) }
+    }
+
+    fun importVaultPrivateKey(uri: Uri) {
+        try {
+            val resolver = getApplication<android.app.Application>().contentResolver
+            val content = resolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                ?: throw IllegalArgumentException("Unable to read selected private key")
+            _state.update {
+                it.copy(
+                    newVaultPrivateKey = content,
+                    newVaultKeyName = it.newVaultKeyName.ifBlank { "Imported key" },
+                    error = null,
+                )
+            }
+        } catch (error: Throwable) {
+            _state.update { it.copy(error = error.message ?: error.toString()) }
+        }
+    }
+
+    fun addVaultKey() {
+        val current = state.value
+        val name = current.newVaultKeyName.trim()
+        val privateKey = current.newVaultPrivateKey.trim()
+        if (name.isBlank()) {
+            _state.update { it.copy(error = "Vault key name is required") }
+            return
+        }
+        if (privateKey.isBlank()) {
+            _state.update { it.copy(error = "Private key is required") }
+            return
+        }
+        viewModelScope.launch {
+            runBusy {
+                val vault = state.value.sync?.vault ?: HubVaultConfig()
+                val secret = store.loadOrCreateVaultSecret(vault)
+                val key = PortalVaultCrypto.encryptPrivateKey(name, privateKey.ensureTrailingNewline(), secret)
+                updateVault(vault.upsertKey(key), "Added vault key")
+                _state.update {
+                    it.copy(
+                        vaultSecretStored = true,
+                        showAddVaultKey = false,
+                        newVaultKeyName = "",
+                        newVaultPrivateKey = "",
+                    )
+                }
+            }
+        }
+    }
+
+    fun editVaultKey(id: String) {
+        val key = state.value.sync?.vault?.findKey(id) ?: return
+        _state.update { it.copy(editVaultKeyId = id, editVaultKeyName = key.name, error = null) }
+    }
+
+    fun updateEditVaultKeyName(value: String) {
+        _state.update { it.copy(editVaultKeyName = value, error = null) }
+    }
+
+    fun cancelEditVaultKey() {
+        _state.update { it.copy(editVaultKeyId = null, editVaultKeyName = "") }
+    }
+
+    fun saveVaultKeyName() {
+        val id = state.value.editVaultKeyId ?: return
+        val name = state.value.editVaultKeyName.trim()
+        if (name.isBlank()) {
+            _state.update { it.copy(error = "Vault key name is required") }
+            return
+        }
+        viewModelScope.launch {
+            runBusy {
+                val vault = state.value.sync?.vault ?: HubVaultConfig()
+                updateVault(vault.renameKey(id, name), "Renamed vault key")
+                _state.update { it.copy(editVaultKeyId = null, editVaultKeyName = "") }
+            }
+        }
+    }
+
+    fun deleteVaultKey(id: String) {
+        viewModelScope.launch {
+            runBusy {
+                val vault = state.value.sync?.vault ?: HubVaultConfig()
+                updateVault(vault.deleteKey(id), "Deleted vault key")
+            }
+        }
     }
 
     fun resume(session: HubSession) {
@@ -290,7 +585,38 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
             )
         }
         val sync = HubSyncState(services)
-        _state.update { it.copy(sync = sync, hosts = sync.hosts) }
+        _state.update {
+            it.copy(
+                sync = sync,
+                hosts = sync.hosts,
+                vaultSecretStored = store.loadVaultSecret() != null,
+                vaultEnrollmentId = store.loadVaultEnrollmentId(),
+            )
+        }
+    }
+
+    private suspend fun updateVault(vault: HubVaultConfig, message: String) {
+        val sync = client.putVault(vault)
+        _state.update {
+            it.copy(
+                sync = sync,
+                hosts = sync.hosts,
+                selected = PortalTab.Vault,
+                vaultActionMessage = message,
+                error = null,
+            )
+        }
+    }
+
+    private fun validateVaultSecret(secret: String, vault: HubVaultConfig) {
+        require(secret.isNotBlank()) { "Vault secret is required" }
+        vault.keys.firstOrNull()?.let {
+            PortalVaultCrypto.decryptPrivateKey(it, secret)
+            return
+        }
+        vault.secrets.firstOrNull()?.let {
+            PortalVaultCrypto.decryptSecret(it, secret)
+        }
     }
 
     private suspend fun runBusy(block: suspend () -> Unit) {
@@ -331,6 +657,16 @@ data class PortalUiState(
     val terminalInput: String = "",
     val terminalStatus: String = "Detached",
     val terminalConnected: Boolean = false,
+    val vaultSecretStored: Boolean = false,
+    val vaultSecretInput: String = "",
+    val vaultEnrollmentId: String? = null,
+    val vaultEnrollmentStatus: String? = null,
+    val vaultActionMessage: String? = null,
+    val showAddVaultKey: Boolean = false,
+    val newVaultKeyName: String = "",
+    val newVaultPrivateKey: String = "",
+    val editVaultKeyId: String? = null,
+    val editVaultKeyName: String = "",
 )
 
 enum class PortalTab {
@@ -408,7 +744,7 @@ fun PortalApp(viewModel: PortalViewModel) {
                     PortalTab.Hosts -> HostsScreen(state, viewModel)
                     PortalTab.Sessions -> SessionsScreen(state, viewModel)
                     PortalTab.Sync -> SyncScreen(state)
-                    PortalTab.Vault -> VaultScreen(state)
+                    PortalTab.Vault -> VaultScreen(state, viewModel)
                     PortalTab.Terminal -> TerminalScreen(state, viewModel)
                 }
             }
@@ -526,12 +862,168 @@ private fun SyncScreen(state: PortalUiState) {
 }
 
 @Composable
-private fun VaultScreen(state: PortalUiState) {
-    val sync = state.sync
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SummaryRow("Encrypted keys", (sync?.vaultKeyCount ?: 0).toString())
-        SummaryRow("Encrypted secrets", (sync?.vaultSecretCount ?: 0).toString())
-        Text("Vault payloads are synced as Portal-encrypted blobs. This build preserves synced vault data and keeps token material in Android Keystore-backed storage.")
+private fun VaultScreen(state: PortalUiState, viewModel: PortalViewModel) {
+    val vault = state.sync?.vault ?: HubVaultConfig()
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) viewModel.importVaultPrivateKey(uri)
+    }
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                SummaryRow("Encrypted keys", vault.keys.size.toString())
+                SummaryRow("Encrypted secrets", vault.secrets.size.toString())
+                SummaryRow("Vault unlock key", if (state.vaultSecretStored) "Stored on device" else "Not stored")
+                state.vaultEnrollmentId?.let {
+                    SummaryRow("Unlock request", state.vaultEnrollmentStatus ?: "Pending approval")
+                }
+                state.vaultActionMessage?.let {
+                    Text(it, color = MaterialTheme.colorScheme.secondary)
+                }
+                if (!state.vaultSecretStored && !vault.hasItems) {
+                    OutlinedTextField(
+                        value = state.vaultSecretInput,
+                        onValueChange = viewModel::updateVaultSecretInput,
+                        label = { Text("Existing vault unlock key") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (state.vaultSecretStored) {
+                        OutlinedButton(onClick = viewModel::copyVaultSecret, enabled = !state.loading) {
+                            Text("Copy secret")
+                        }
+                        OutlinedButton(onClick = viewModel::forgetVaultSecret, enabled = !state.loading) {
+                            Text("Forget secret")
+                        }
+                    } else if (vault.hasItems) {
+                        Button(onClick = viewModel::requestVaultUnlock, enabled = !state.loading && state.vaultEnrollmentId == null) {
+                            Icon(Icons.Filled.Key, contentDescription = null)
+                            Text("Request access")
+                        }
+                        OutlinedButton(onClick = viewModel::checkVaultUnlock, enabled = !state.loading && state.vaultEnrollmentId != null) {
+                            Icon(Icons.Filled.Refresh, contentDescription = null)
+                            Text("Check approval")
+                        }
+                        if (state.vaultEnrollmentId != null) {
+                            TextButton(onClick = viewModel::resetVaultUnlockRequest, enabled = !state.loading) {
+                                Text("Reset request")
+                            }
+                        }
+                    } else {
+                        Button(onClick = viewModel::saveVaultSecret, enabled = state.vaultSecretInput.isNotBlank() && !state.loading) {
+                            Icon(Icons.Filled.Save, contentDescription = null)
+                            Text("Store")
+                        }
+                        OutlinedButton(onClick = viewModel::createVaultSecret, enabled = !vault.hasItems && !state.loading) {
+                            Text("Create")
+                        }
+                    }
+                    Button(onClick = viewModel::openAddVaultKey, enabled = !state.loading) {
+                        Icon(Icons.Filled.Key, contentDescription = null)
+                        Text("Add key")
+                    }
+                }
+            }
+        }
+
+        if (state.showAddVaultKey) {
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Add Vault Key", style = MaterialTheme.typography.titleMedium)
+                        OutlinedTextField(
+                            value = state.newVaultKeyName,
+                            onValueChange = viewModel::updateNewVaultKeyName,
+                            label = { Text("Name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = state.newVaultPrivateKey,
+                            onValueChange = viewModel::updateNewVaultPrivateKey,
+                            label = { Text("Private key") },
+                            minLines = 6,
+                            maxLines = 10,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { importLauncher.launch("*/*") }, enabled = !state.loading) {
+                                Icon(Icons.Filled.UploadFile, contentDescription = null)
+                                Text("Import")
+                            }
+                            Button(onClick = viewModel::addVaultKey, enabled = !state.loading) {
+                                Icon(Icons.Filled.Save, contentDescription = null)
+                                Text("Save")
+                            }
+                            TextButton(onClick = viewModel::cancelAddVaultKey) {
+                                Text("Cancel")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (vault.keys.isEmpty() && vault.secrets.isEmpty()) {
+            item { EmptyText("No vault items. Add an SSH private key to store it as a Portal-encrypted vault blob.") }
+        }
+
+        items(vault.keys, key = { it.id }) { key ->
+            VaultKeyCard(key, state, viewModel)
+        }
+
+        items(vault.secrets, key = { it.id }) { secret ->
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(secret.name, style = MaterialTheme.typography.titleMedium)
+                    Text("Secret: ${secret.kind}", color = MaterialTheme.colorScheme.secondary)
+                    Text("Updated ${secret.updatedAt}", color = MaterialTheme.colorScheme.secondary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun VaultKeyCard(key: VaultKey, state: PortalUiState, viewModel: PortalViewModel) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (state.editVaultKeyId == key.id) {
+                OutlinedTextField(
+                    value = state.editVaultKeyName,
+                    onValueChange = viewModel::updateEditVaultKeyName,
+                    label = { Text("Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = viewModel::saveVaultKeyName, enabled = !state.loading) {
+                        Icon(Icons.Filled.Save, contentDescription = null)
+                        Text("Save")
+                    }
+                    TextButton(onClick = viewModel::cancelEditVaultKey) {
+                        Text("Cancel")
+                    }
+                }
+            } else {
+                Text(key.name, style = MaterialTheme.typography.titleMedium)
+                Text(key.algorithm ?: "Encrypted SSH key", color = MaterialTheme.colorScheme.secondary)
+                key.fingerprint?.let { Text(it, color = MaterialTheme.colorScheme.secondary) }
+                key.publicKey?.let { Text(it.take(120), color = MaterialTheme.colorScheme.secondary) }
+                Text("Updated ${key.updatedAt}", color = MaterialTheme.colorScheme.secondary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { viewModel.editVaultKey(key.id) }, enabled = !state.loading) {
+                        Icon(Icons.Filled.Edit, contentDescription = null)
+                        Text("Rename")
+                    }
+                    TextButton(onClick = { viewModel.deleteVaultKey(key.id) }, enabled = !state.loading) {
+                        Icon(Icons.Filled.Delete, contentDescription = null)
+                        Text("Delete")
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -588,3 +1080,5 @@ private fun SummaryRow(label: String, value: String) {
 private fun EmptyText(text: String) {
     Text(text, color = MaterialTheme.colorScheme.secondary)
 }
+
+private fun String.ensureTrailingNewline(): String = if (endsWith("\n")) this else "$this\n"

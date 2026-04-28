@@ -4,8 +4,10 @@ import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
@@ -141,6 +143,69 @@ class HubClient(
         return HubSyncState(services)
     }
 
+    suspend fun putVault(vault: HubVaultConfig): HubSyncState {
+        val current = syncState()
+        val currentVault = current.services["vault"]
+        val body = JSONObject()
+            .put(
+                "services",
+                JSONObject()
+                    .put(
+                        "vault",
+                        JSONObject()
+                            .put("expected_revision", currentVault?.revision ?: "0")
+                            .put("payload", vault.toJson())
+                            .put("tombstones", currentVault?.tombstones ?: emptyList<String>()),
+                    ),
+            )
+            .toString()
+            .toRequestBody("application/json; charset=utf-8".toMediaType())
+        val json = authorizedJson { token ->
+            Request.Builder()
+                .url("${store.hubUrl}/api/sync/v2")
+                .header("Authorization", "Bearer $token")
+                .put(body)
+                .build()
+        }
+        store.saveSyncSnapshot(json.toString())
+        val services = json.objectMap("services").mapValues { (_, raw) ->
+            HubServiceState(
+                revision = raw.optString("revision", "0"),
+                payload = raw.optJSONObject("payload") ?: JSONObject(),
+                tombstones = raw.opt("tombstones") ?: emptyList<String>(),
+            )
+        }
+        return HubSyncState(services)
+    }
+
+    suspend fun createVaultEnrollment(deviceName: String, publicKeyDerBase64: String): VaultEnrollment {
+        val body = JSONObject()
+            .put("device_name", deviceName)
+            .put("public_key_algorithm", "RSA-OAEP-SHA256")
+            .put("public_key_der_base64", publicKeyDerBase64)
+            .toString()
+            .toRequestBody("application/json; charset=utf-8".toMediaType())
+        val json = authorizedJson { token ->
+            Request.Builder()
+                .url("${store.hubUrl}/api/vault/enrollments")
+                .header("Authorization", "Bearer $token")
+                .post(body)
+                .build()
+        }
+        return VaultEnrollment.fromJson(json)
+    }
+
+    suspend fun loadVaultEnrollment(id: String): VaultEnrollment {
+        val json = authorizedJson { token ->
+            Request.Builder()
+                .url("${store.hubUrl}/api/vault/enrollments/${id.urlEncode()}")
+                .header("Authorization", "Bearer $token")
+                .get()
+                .build()
+        }
+        return VaultEnrollment.fromJson(json)
+    }
+
     suspend fun listSessions(): List<HubSession> {
         val json = authorizedJson { token ->
             Request.Builder()
@@ -267,6 +332,30 @@ data class TerminalTarget(
     val rows: Int = 24,
     val privateKey: String? = null,
 )
+
+data class VaultEnrollment(
+    val id: String,
+    val deviceName: String,
+    val status: String,
+    val encryptedSecretBase64: String?,
+    val createdAt: String,
+    val updatedAt: String,
+) {
+    companion object {
+        fun fromJson(json: JSONObject) = VaultEnrollment(
+            id = json.getString("id"),
+            deviceName = json.optString("device_name"),
+            status = json.optString("status"),
+            encryptedSecretBase64 = if (json.has("encrypted_secret_base64") && !json.isNull("encrypted_secret_base64")) {
+                json.optString("encrypted_secret_base64").ifBlank { null }
+            } else {
+                null
+            },
+            createdAt = json.optString("created_at"),
+            updatedAt = json.optString("updated_at"),
+        )
+    }
+}
 
 interface TerminalListener {
     fun onStarted()

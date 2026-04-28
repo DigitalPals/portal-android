@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Enostaven, močan, odprtokodni SSH odjemalec.</string>
-  <string name="service_desc">Vzdržuje SSH povezave in naložene javne ključe</string>
   <string name="title_pubkey_list">Javni ključi</string>
   <string name="title_port_forwards_list">Posredovana vrata</string>
   <string name="title_help">Pomoč</string>
@@ -147,7 +145,7 @@
   <string name="no">Ne</string>
   <string name="yes">Da</string>
   <string name="menu_colors_reset">Ponastavi</string>
-  <string name="app_is_running">ConnectBot je dejaven</string>
+  <string name="app_is_running">Portal Android je dejaven</string>
   <string name="image_description_connected">Povezano.</string>
   <string name="image_description_disconnected">Prekinjeno.</string>
   <string name="button_key_esc">Esc</string>

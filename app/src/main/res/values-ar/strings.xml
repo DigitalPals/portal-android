@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">عميل SSH بسيط وقوي ومفتوح المصدر.</string>
-  <string name="service_desc">يحافظ على اتصالات SSH ويقوم بتحميل مفاتيح SSH العامة.</string>
-  <string name="app_copyright">حقوق النشر © كيني روت</string>
   <string name="title_pubkey_list">المفاتيح العامة</string>
   <string name="title_port_forwards_list">تحويلات المنافذ</string>
   <string name="title_help">المساعدة</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">سجلات التطبيق</string>
   <string name="copy_logs">نسخ السجلات</string>
   <string name="logs_copied">تم نسخ السجلات إلى الحافظة</string>
-  <string name="logs_bug_report_info">لإبلاغ عن خطأ، انسخ سجلات الأخطاء هذه وافتح مشكلة جديدة على الرابط التالي: https://connectbot.org/bug</string>
+  <string name="logs_bug_report_info">لإبلاغ عن خطأ، انسخ سجلات الأخطاء هذه وافتح مشكلة جديدة على الرابط التالي: https://github.com/DigitalPals/portal-android/issues</string>
   <string name="no_logs_available">لا توجد سجلات متاحة</string>
   <string name="help_section_about">حول</string>
   <string name="title_contact">اتصل بنا للحصول على الدعم</string>
@@ -504,9 +501,6 @@
   <string name="help_website">موقع ويب</string>
   <string name="help_github">كود المصدر</string>
   <string name="help_report_bug">أبلغ عن خطأ</string>
-  <string name="help_section_donate">ادعم التطوير</string>
-  <string name="help_donate_github">برنامج GitHub للرعاية</string>
-  <string name="help_donate_coffee">ادعمني بشراء فنجان قهوة</string>
   <string name="colorscheme_default_description">الألوان الافتراضية للطرفية</string>
   <string name="colorscheme_solarized_dark_description">ألوان دقيقة للآلات والبشر</string>
   <string name="colorscheme_solarized_light_description">تصميم سولارايزد بخلفية فاتحة</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">المصادقة عند التشغيل</string>
   <string name="pref_auth_on_launch_summary">اطلب بصمة الإصبع أو التعرف على الوجه أو رمز PIN الخاص بالجهاز عند فتح التطبيق.</string>
   <string name="pref_security_category">الأمان</string>
-  <string name="auth_screen_title">تم قفل ConnectBot</string>
+  <string name="auth_screen_title">تم قفل Portal Android</string>
   <string name="auth_screen_unlock_button">اضغط لفتح القفل</string>
-  <string name="auth_prompt_title">افتح ConnectBot</string>
+  <string name="auth_prompt_title">افتح Portal Android</string>
   <string name="auth_prompt_subtitle">تحقق من هويتك للمتابعة.</string>
 </resources>

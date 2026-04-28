@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Client SSH mã nguồn mở, đơn giản và mạnh mẽ.</string>
-  <string name="service_desc">Duy trì kết nối SSH và các khoá đã nạp</string>
-  <string name="app_copyright">Bản quyền © Kenny Root</string>
   <string name="title_pubkey_list">Khoá</string>
   <string name="title_port_forwards_list">Chuyển tiếp cổng</string>
   <string name="title_help">Trợ Giúp</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">Chỉnh sửa màu %1$d</string>
   <string name="dialog_title_reset_all">Khôi phục tất cả màu sắc mặc định?</string>
   <string name="dialog_message_reset_all">Thao tác này sẽ đặt lại tất cả 256 màu về giá trị mặc định. Thao tác này không thể hoàn tác.</string>
-  <string name="app_is_running">ConnectBot đang kết nối</string>
+  <string name="app_is_running">Portal Android đang kết nối</string>
   <string name="label_red">Đỏ</string>
   <string name="label_green">Màu xanh lá cây</string>
   <string name="label_blue">Xanh lam</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">Nhật ký ứng dụng</string>
   <string name="copy_logs">Sao chép nhật ký</string>
   <string name="logs_copied">Nhật ký đã được sao chép vào bộ nhớ tạm</string>
-  <string name="logs_bug_report_info">Để báo cáo lỗi, hãy sao chép các nhật ký này và mở một báo cáo mới tại https://connectbot.org/bug</string>
+  <string name="logs_bug_report_info">Để báo cáo lỗi, hãy sao chép các nhật ký này và mở một báo cáo mới tại https://github.com/DigitalPals/portal-android/issues</string>
   <string name="no_logs_available">Không có nhật ký nào khả dụng</string>
   <string name="help_section_about">Giới thiệu</string>
   <string name="title_contact">Liên hệ và Hỗ trợ</string>
@@ -504,9 +501,6 @@
   <string name="help_website">Trang web</string>
   <string name="help_github">Mã nguồn</string>
   <string name="help_report_bug">Báo cáo lỗi</string>
-  <string name="help_section_donate">Ủng hộ việc phát triển ứng dụng</string>
-  <string name="help_donate_github">GitHub Sponsors</string>
-  <string name="help_donate_coffee">Hãy mua cho tôi một tách cà phê</string>
   <string name="colorscheme_default_description">Màu mặc định của giao diện dòng lệnh</string>
   <string name="colorscheme_solarized_dark_description">Màu sắc chính xác cho máy móc và con người</string>
   <string name="colorscheme_solarized_light_description">Chế độ Solarized với nền sáng</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">Xác thực khi khởi động</string>
   <string name="pref_auth_on_launch_summary">Yêu cầu sử dụng dấu vân tay, khuôn mặt hoặc mã PIN của thiết bị khi mở ứng dụng</string>
   <string name="pref_security_category">Bảo mật</string>
-  <string name="auth_screen_title">ConnectBot đã bị khóa</string>
+  <string name="auth_screen_title">Portal Android đã bị khóa</string>
   <string name="auth_screen_unlock_button">Chạm để mở khóa</string>
-  <string name="auth_prompt_title">Mở khóa ConnectBot</string>
+  <string name="auth_prompt_title">Mở khóa Portal Android</string>
   <string name="auth_prompt_subtitle">Xác minh danh tính của bạn để tiếp tục</string>
 </resources>

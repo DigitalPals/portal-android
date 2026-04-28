@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Vienkāršs, funkcionāls atvērtā pirmkoda SSH klients.</string>
-  <string name="service_desc">Pārvalda SSH savienojumus un ielādētās publiskās atslēgas</string>
   <string name="title_pubkey_list">Publiskās atslēgas</string>
   <string name="title_help">Palīdzība</string>
   <string name="title_colors">Krāsas</string>

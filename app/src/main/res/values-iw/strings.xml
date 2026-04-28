@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">לקוח SSH פשוט, עצמתי ובקוד פתוח.</string>
-  <string name="service_desc">מתפעל חיבורי SSH ומפתחות ציבוריים שנטענים</string>
-  <string name="app_copyright">זכויות יוצרים © קני רוט</string>
   <string name="title_pubkey_list">מפתחות ציבוריים</string>
   <string name="title_port_forwards_list">הפניית פתחות</string>
   <string name="title_help">עזרה</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">ערוך צבע %1$d</string>
   <string name="dialog_title_reset_all">לאפס את כל הצבעים?</string>
   <string name="dialog_message_reset_all">פעולה זו תאפס את כל 256 הצבעים לערכים המוגדרים כברירת מחדל. לא ניתן לבטל פעולה זו.</string>
-  <string name="app_is_running">ConnectBot פעיל</string>
+  <string name="app_is_running">Portal Android פעיל</string>
   <string name="label_red">אדום</string>
   <string name="label_green">ירוק</string>
   <string name="label_blue">כחול</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">יומני יישומים</string>
   <string name="copy_logs">העתק יומנים</string>
   <string name="logs_copied">היומנים הועתקו ללוח הגזירים</string>
-  <string name="logs_bug_report_info">כדי לדווח על תקלה, העתק את קבצי הרישום האלה ופתח דיווח חדש בכתובת https://connectbot.org/bug</string>
+  <string name="logs_bug_report_info">כדי לדווח על תקלה, העתק את קבצי הרישום האלה ופתח דיווח חדש בכתובת https://github.com/DigitalPals/portal-android/issues</string>
   <string name="no_logs_available">אין יומנים זמינים</string>
   <string name="help_section_about">אודות</string>
   <string name="title_contact">צור קשר ותמיכה</string>
@@ -504,9 +501,6 @@
   <string name="help_website">אתר אינטרנט</string>
   <string name="help_github">קוד המקור</string>
   <string name="help_report_bug">דווח על באג</string>
-  <string name="help_section_donate">תמכו בפיתוח</string>
-  <string name="help_donate_github">GitHub Sponsors</string>
-  <string name="help_donate_coffee">תקנו לי קפה</string>
   <string name="colorscheme_default_description">צבעי ברירת המחדל של הטרמינל</string>
   <string name="colorscheme_solarized_dark_description">צבעים מדויקים למכונות ולאנשים</string>
   <string name="colorscheme_solarized_light_description">סולאריזד עם רקע בהיר</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">אימות בעת ההפעלה</string>
   <string name="pref_auth_on_launch_summary">יש לדרוש טביעת אצבע, זיהוי פנים או קוד PIN של המכשיר בעת פתיחת האפליקציה</string>
   <string name="pref_security_category">אבטחה</string>
-  <string name="auth_screen_title">ConnectBot נעול</string>
+  <string name="auth_screen_title">Portal Android נעול</string>
   <string name="auth_screen_unlock_button">הקש כדי לבטל את הנעילה</string>
-  <string name="auth_prompt_title">פתח את ConnectBot</string>
+  <string name="auth_prompt_title">פתח את Portal Android</string>
   <string name="auth_prompt_subtitle">אמת את זהותך כדי להמשיך</string>
 </resources>

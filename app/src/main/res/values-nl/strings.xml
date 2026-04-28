@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Simpele, krachtige, open-source SSH client.</string>
-  <string name="service_desc">Onderhoud SSH verbindingen en geladen pubkeys</string>
-  <string name="app_copyright">Copyright © Kenny Root</string>
   <string name="title_pubkey_list">Pubkeys</string>
   <string name="title_port_forwards_list">Port forwards</string>
   <string name="title_help">Help</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">Kleur bewerken %1$d</string>
   <string name="dialog_title_reset_all">Alle kleuren terugzetten?</string>
   <string name="dialog_message_reset_all">Dit zal alle 256 kleuren terugzetten naar hun standaardwaarden. Deze actie kan niet ongedaan worden gemaakt.</string>
-  <string name="app_is_running">ConnectBot werkt (Connecties zijn actief)</string>
+  <string name="app_is_running">Portal Android werkt (Connecties zijn actief)</string>
   <string name="label_red">Rood</string>
   <string name="label_green">Groen</string>
   <string name="label_blue">Blauw</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">Applicatielogbestanden</string>
   <string name="copy_logs">Logbestanden kopiëren</string>
   <string name="logs_copied">Logbestanden naar het klembord gekopieerd</string>
-  <string name="logs_bug_report_info">Om een bug te melden, kopieer deze logbestanden en open een nieuw issue op https://connectbot.org/bug</string>
+  <string name="logs_bug_report_info">Om een bug te melden, kopieer deze logbestanden en open een nieuw issue op https://github.com/DigitalPals/portal-android/issues</string>
   <string name="no_logs_available">Er zijn geen logbestanden beschikbaar.</string>
   <string name="help_section_about">Over</string>
   <string name="title_contact">Contact en ondersteuning</string>
@@ -504,9 +501,6 @@
   <string name="help_website">Website</string>
   <string name="help_github">Broncode</string>
   <string name="help_report_bug">Meld een bug</string>
-  <string name="help_section_donate">Ondersteun de ontwikkeling</string>
-  <string name="help_donate_github">GitHub Sponsors</string>
-  <string name="help_donate_coffee">Koop me een kop koffie</string>
   <string name="colorscheme_default_description">Standaard terminalkleuren</string>
   <string name="colorscheme_solarized_dark_description">Nauwkeurige kleuren voor machines en mensen</string>
   <string name="colorscheme_solarized_light_description">Solarized met een lichte achtergrond</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">Authenticatie bij het opstarten</string>
   <string name="pref_auth_on_launch_summary">Vraag om een vingerafdruk, gezichtsherkenning of een apparaat-pincode bij het openen van de app.</string>
   <string name="pref_security_category">Beveiliging</string>
-  <string name="auth_screen_title">ConnectBot is vergrendeld</string>
+  <string name="auth_screen_title">Portal Android is vergrendeld</string>
   <string name="auth_screen_unlock_button">Tik om te ontgrendelen</string>
-  <string name="auth_prompt_title">Ontgrendel ConnectBot</string>
+  <string name="auth_prompt_title">Ontgrendel Portal Android</string>
   <string name="auth_prompt_subtitle">Verifieer uw identiteit om verder te gaan</string>
 </resources>

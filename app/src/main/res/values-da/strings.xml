@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Enkel, kraftfuld, open source SSH klient</string>
-  <string name="service_desc">Opretholder SSH forbindelser og indlæste offentlige nøgler</string>
   <string name="title_pubkey_list">Offentlige nøgler</string>
   <string name="title_port_forwards_list">Port-videresendelser</string>
   <string name="title_help">Hjælp</string>
@@ -146,5 +144,5 @@
   <string name="no">Nej</string>
   <string name="yes">Ja</string>
   <string name="menu_colors_reset">Nulstil</string>
-  <string name="app_is_running">ConnectBot kører</string>
+  <string name="app_is_running">Portal Android kører</string>
 </resources>

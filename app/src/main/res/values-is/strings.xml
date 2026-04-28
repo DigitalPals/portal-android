@@ -1,6 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="service_desc">Heldur utan um SSH tengingar og geymda \"pubkeys\"</string>
   <string name="title_pubkey_list">Almennir lyklar</string>
   <string name="title_port_forwards_list">Áframsending ports</string>
   <string name="title_help">Hjálp</string>
@@ -119,5 +118,5 @@
   <string name="no">Nei</string>
   <string name="yes">Já</string>
   <string name="menu_colors_reset">Frumstilla</string>
-  <string name="app_is_running">ConnectBot er í gangi</string>
+  <string name="app_is_running">Portal Android er í gangi</string>
 </resources>

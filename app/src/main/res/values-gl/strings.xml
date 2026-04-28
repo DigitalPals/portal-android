@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Cliente SSH simple, potente e open-source</string>
-  <string name="service_desc">Mantén as conexións SSH e as chaves cargadas</string>
   <string name="title_pubkey_list">Chaves públicas</string>
   <string name="title_port_forwards_list">Redirección de portos</string>
   <string name="title_help">Axuda</string>
@@ -180,7 +178,7 @@
   <string name="no">Non</string>
   <string name="yes">Si</string>
   <string name="menu_colors_reset">Reiniciar</string>
-  <string name="app_is_running">ConnectBot está en execución</string>
+  <string name="app_is_running">Portal Android está en execución</string>
   <string name="colors_fg_label">FG: %1$d</string>
   <string name="color_bg_label">BG: %1$d</string>
   <string name="image_description_connected">Conectado.</string>

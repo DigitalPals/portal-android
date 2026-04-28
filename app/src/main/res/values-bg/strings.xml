@@ -1,6 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Прост, мощен SSH клиент с отворен код</string>
   <string name="title_pubkey_list">Публични ключове</string>
   <string name="title_port_forwards_list">Пренасочване на портове</string>
   <string name="title_help">Помощ</string>

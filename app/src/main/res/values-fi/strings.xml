@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Yksinkertainen ja tehokas avoimen lähdekoodin SSH-asiakasohjelma.</string>
-  <string name="service_desc">Ylläpitää SSH-yhteydet ja ladatut julkiset avaimet</string>
   <string name="title_pubkey_list">Julkiset avaimet</string>
   <string name="title_port_forwards_list">Porttiohjaukset</string>
   <string name="title_help">Ohje</string>
@@ -151,7 +149,7 @@
   <string name="no">Ei</string>
   <string name="yes">Kyllä</string>
   <string name="menu_colors_reset">Palauta</string>
-  <string name="app_is_running">ConnectBot on käynnissä</string>
+  <string name="app_is_running">Portal Android on käynnissä</string>
   <string name="image_description_connected">Yhdistetty.</string>
   <string name="image_description_disconnected">Yhteys katkaistu</string>
   <string name="image_description_send_escape_character">Lähetä escape.</string>

@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">ໂປຣແກຣມລູກຂ່າຍ SSH ແບບ open-source ທີ່ງ່າຍດາຍ ແລະ ມີປະສິດທິພາບ.</string>
-  <string name="service_desc">ຮັກສາການເຊື່ອມຕໍ່ SSH ແລະ pubkeys ທີ່ໂຫຼດໄວ້</string>
   <string name="title_pubkey_list">ຄີສາທາລະນະ</string>
   <string name="title_port_forwards_list">ການສົ່ງຕໍ່ພອດ</string>
   <string name="title_help">ຊ່ວຍເຫຼືອ</string>
@@ -181,7 +179,7 @@
   <string name="no">ບໍ່</string>
   <string name="yes">ແມ່ນ</string>
   <string name="menu_colors_reset">ຣີເຊັດ</string>
-  <string name="app_is_running">ConnectBot ກຳລັງເຮັດວຽກຢູ່</string>
+  <string name="app_is_running">Portal Android ກຳລັງເຮັດວຽກຢູ່</string>
   <string name="colors_fg_label">FG: %1$d</string>
   <string name="color_bg_label">BG: %1$d</string>
   <string name="image_description_connected">ເຊື່ອມຕໍ່ແລ້ວ.</string>

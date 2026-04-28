@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Un client SSH simple, open-source et puissant.</string>
-  <string name="service_desc">Maintient les connexions SSH et les clefs publiques chargées</string>
-  <string name="app_copyright">Droits d\'auteur © Kenny Root</string>
   <string name="title_pubkey_list">Clés publiques</string>
   <string name="title_port_forwards_list">Redirections de ports</string>
   <string name="title_help">Aide</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">Éditer la couleur %1$d</string>
   <string name="dialog_title_reset_all">Réinitialiser toutes les couleurs</string>
   <string name="dialog_message_reset_all">Ceci réinitialisera les 256 couleurs à leurs valeurs par défaut Cette action ne peut pas être annulée</string>
-  <string name="app_is_running">ConnectBot est en cours</string>
+  <string name="app_is_running">Portal Android est en cours</string>
   <string name="label_red">Rouge</string>
   <string name="label_green">Vert</string>
   <string name="label_blue">Bleu</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">Journaux d\'application</string>
   <string name="copy_logs">Copier les journaux</string>
   <string name="logs_copied">Journaux copiés dans le presse-papiers</string>
-  <string name="logs_bug_report_info">Pour signaler un bogue copiez ces journaux et ouvrez une nouvelle question à https://connectbot.org/bug</string>
+  <string name="logs_bug_report_info">Pour signaler un bogue copiez ces journaux et ouvrez une nouvelle question à https://github.com/DigitalPals/portal-android/issues</string>
   <string name="no_logs_available">Aucuns journaux disponibles</string>
   <string name="help_section_about">A propos</string>
   <string name="title_contact">Contact et assistance</string>
@@ -504,9 +501,6 @@
   <string name="help_website">Site web</string>
   <string name="help_github">Code source</string>
   <string name="help_report_bug">Signaler un bug</string>
-  <string name="help_section_donate">Soutenez le développement</string>
-  <string name="help_donate_github">Sponsors GitHub</string>
-  <string name="help_donate_coffee">Offrez-moi un café</string>
   <string name="colorscheme_default_description">Couleurs du terminal par défaut</string>
   <string name="colorscheme_solarized_dark_description">Couleurs de précision pour les machines et les personnes</string>
   <string name="colorscheme_solarized_light_description">Solarisés avec arrière-plan clair</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">Authentification au démarrage</string>
   <string name="pref_auth_on_launch_summary">Exigez une empreinte digitale, la reconnaissance faciale ou le code PIN de l\'appareil lors de l\'ouverture de l\'application</string>
   <string name="pref_security_category">Sécurité</string>
-  <string name="auth_screen_title">ConnectBot est verrouillé</string>
+  <string name="auth_screen_title">Portal Android est verrouillé</string>
   <string name="auth_screen_unlock_button">Appuyez pour déverrouiller</string>
-  <string name="auth_prompt_title">Déverrouillez ConnectBot</string>
+  <string name="auth_prompt_title">Déverrouillez Portal Android</string>
   <string name="auth_prompt_subtitle">Vérifiez votre identité pour continuer</string>
 </resources>

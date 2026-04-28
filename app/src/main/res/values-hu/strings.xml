@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Egyszerű, hatékony, nyílt-forráskódú SSH kliens.</string>
-  <string name="service_desc">Fenntartja az SSH kapcsolatokat és a betöltött nyilvános kulcsokat</string>
   <string name="title_pubkey_list">Publikus kulcsok</string>
   <string name="title_port_forwards_list">Port átiránytások</string>
   <string name="title_help">Súgó</string>
@@ -146,7 +144,7 @@
   <string name="no">Nem</string>
   <string name="yes">Igen</string>
   <string name="menu_colors_reset">Visszaállít</string>
-  <string name="app_is_running">ConnectBot már fut</string>
+  <string name="app_is_running">Portal Android már fut</string>
   <string name="image_description_connected">Kapcsolódva</string>
   <string name="image_description_toggle_control_character">Vezérlő jel i/n</string>
   <string name="image_description_send_escape_character">Kilépő jel küldés</string>

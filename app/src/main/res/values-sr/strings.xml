@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Једноставан, моћан, ССХ клијент отвореног кôда.</string>
-  <string name="service_desc">Одржава ССХ везе и учитане јавне кључеве</string>
   <string name="title_pubkey_list">Јавни кључеви</string>
   <string name="title_port_forwards_list">Прослеђени портови</string>
   <string name="title_help">Помоћ</string>

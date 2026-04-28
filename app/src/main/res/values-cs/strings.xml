@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Jednoduchý, všestranný, open-source SSH klient</string>
-  <string name="service_desc">Správa SSH spojení a nahraných klíčů</string>
-  <string name="app_copyright">Autorská práva © Kenny Root</string>
   <string name="title_pubkey_list">Veřejné klíče</string>
   <string name="title_port_forwards_list">Přesměrování portu</string>
   <string name="title_help">Nápověda</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">Upravit barvu %1$d</string>
   <string name="dialog_title_reset_all">Resetovat všechny barvy?</string>
   <string name="dialog_message_reset_all">Tohle resetuje všechny 256 barev na jejich výchozí hodnoty. Tento krok nelze vrátit zpět.</string>
-  <string name="app_is_running">ConnectBot běží</string>
+  <string name="app_is_running">Portal Android běží</string>
   <string name="label_red">Červená</string>
   <string name="label_green">zelená</string>
   <string name="label_blue">Modrý</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">Záznamy aplikace</string>
   <string name="copy_logs">Kopírovat protokoly</string>
   <string name="logs_copied">Protokoly zkopírovány do schránky</string>
-  <string name="logs_bug_report_info">Chcete-li nahlásit chybu, zkopírujte tyto protokoly a otevřete nový problém na adrese https://connectbot.org/bug</string>
+  <string name="logs_bug_report_info">Chcete-li nahlásit chybu, zkopírujte tyto protokoly a otevřete nový problém na adrese https://github.com/DigitalPals/portal-android/issues</string>
   <string name="no_logs_available">Žádné záznamy nejsou k dispozici</string>
   <string name="help_section_about">O aplikaci</string>
   <string name="title_contact">Kontakt a podpora</string>
@@ -504,9 +501,6 @@
   <string name="help_website">Webové stránky</string>
   <string name="help_github">Zdrojový kód</string>
   <string name="help_report_bug">Nahlaste chybu</string>
-  <string name="help_section_donate">Podpořte vývoj</string>
-  <string name="help_donate_github">GitHub Sponsors</string>
-  <string name="help_donate_coffee">Kupte mi kávu</string>
   <string name="colorscheme_default_description">Výchozí barvy terminálu</string>
   <string name="colorscheme_solarized_dark_description">Precizní barvy pro stroje a lidi</string>
   <string name="colorscheme_solarized_light_description">Solarizováno se světlým pozadím</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">Ověření při spuštění</string>
   <string name="pref_auth_on_launch_summary">Při spuštění aplikace vyžadujte ověření pomocí otisku prstu, rozpoznávání obličeje nebo PIN kódu zařízení</string>
   <string name="pref_security_category">Bezpečnost</string>
-  <string name="auth_screen_title">ConnectBot je uzamčen</string>
+  <string name="auth_screen_title">Portal Android je uzamčen</string>
   <string name="auth_screen_unlock_button">Klepnutím odemkněte</string>
-  <string name="auth_prompt_title">Odemkněte ConnectBot</string>
+  <string name="auth_prompt_title">Odemkněte Portal Android</string>
   <string name="auth_prompt_subtitle">Ověřte svou identitu a pokračujte</string>
 </resources>

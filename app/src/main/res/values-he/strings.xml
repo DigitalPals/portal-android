@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">לקוח SSH פשוט, עצמתי ובקוד פתוח.</string>
-  <string name="service_desc">מתפעל חיבורי SSH ומפתחות ציבוריים שנטענים</string>
 	<string name="title_pubkey_list">מפתחות ציבוריים</string>
   <string name="title_port_forwards_list">הפניית פתחות</string>
 	<string name="title_help">עזרה</string>
@@ -147,7 +145,7 @@
   <string name="no">לא</string>
   <string name="yes">כן</string>
   <string name="menu_colors_reset">איפוס</string>
-  <string name="app_is_running">ConnectBot פעיל</string>
+  <string name="app_is_running">Portal Android פעיל</string>
 	<string name="colors_fg_label">קדמה:%1$d</string>
   <string name="color_bg_label">רקע:%1$d</string>
   <string name="image_description_connected">יש חיבור.</string>

@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Jednostavan, moćan, open.source SSH klijent.</string>
-  <string name="service_desc">Pamti SSH konekcije i učitane javne ključeve</string>
   <string name="title_pubkey_list">Javni ključevi</string>
   <string name="title_port_forwards_list">Port forwards</string>
   <string name="title_help">Pomoć</string>

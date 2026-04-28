@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Client SSH simple, potent i lliure</string>
-  <string name="service_desc">Manté les connexions SSH i les claus públiques</string>
-  <string name="app_copyright">Copyright © Kenny Root</string>
   <string name="title_pubkey_list">Claus Públiques</string>
   <string name="title_port_forwards_list">Redirecció de Ports</string>
   <string name="title_help">Ajuda</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">Edita el color %1$d</string>
   <string name="dialog_title_reset_all">Restaurar tots els colors?</string>
   <string name="dialog_message_reset_all">Això restablirà tots els 256 colors als seus valors per defecte. Aquesta acció no es pot revertir.</string>
-  <string name="app_is_running">El ConnectBot està en marxa</string>
+  <string name="app_is_running">El Portal Android està en marxa</string>
   <string name="label_red">Vermell</string>
   <string name="label_green">Verd</string>
   <string name="label_blue">Blau</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">Registre d\'aplicacions</string>
   <string name="copy_logs">Copia els registres</string>
   <string name="logs_copied">Els registres s\'han copiat a la memòria portallàpies.</string>
-  <string name="logs_bug_report_info">Per informar d\'un error, copieu aquests registres i obriu un nou registre a https://connectbot.org/bug</string>
+  <string name="logs_bug_report_info">Per informar d\'un error, copieu aquests registres i obriu un nou registre a https://github.com/DigitalPals/portal-android/issues</string>
   <string name="no_logs_available">No hi ha registres disponibles.</string>
   <string name="help_section_about">Sobre</string>
   <string name="title_contact">Contacte i assistència</string>
@@ -504,9 +501,6 @@
   <string name="help_website">Lloc web</string>
   <string name="help_github">El codi font</string>
   <string name="help_report_bug">Informa d\'un error</string>
-  <string name="help_section_donate">Doneu suport al desenvolupament</string>
-  <string name="help_donate_github">GitHub Sponsors</string>
-  <string name="help_donate_coffee">Fes-me un don</string>
   <string name="colorscheme_default_description">Colors per defecte del terminal</string>
   <string name="colorscheme_solarized_dark_description">Colors precisos per a màquines i persones</string>
   <string name="colorscheme_solarized_light_description">Solarized amb fons clar</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">Autenticació en iniciar l\'aplicació</string>
   <string name="pref_auth_on_launch_summary">Demana l\'empremta digital, el reconeixement facial o el PIN del dispositiu quan s\'obre l\'aplicació.</string>
   <string name="pref_security_category">Seguretat</string>
-  <string name="auth_screen_title">ConnectBot està bloquejat.</string>
+  <string name="auth_screen_title">Portal Android està bloquejat.</string>
   <string name="auth_screen_unlock_button">Toqueu per desbloquejar</string>
-  <string name="auth_prompt_title">Desbloqueja ConnectBot</string>
+  <string name="auth_prompt_title">Desbloqueja Portal Android</string>
   <string name="auth_prompt_subtitle">Verifiqueu la vostra identitat per continuar.</string>
 </resources>

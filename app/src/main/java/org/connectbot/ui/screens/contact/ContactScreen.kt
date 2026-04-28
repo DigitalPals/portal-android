@@ -18,7 +18,6 @@
 package org.connectbot.ui.screens.contact
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -98,30 +97,6 @@ fun ContactScreen(
                 ContactLinkItem(
                     label = stringResource(R.string.help_report_bug),
                     url = stringResource(R.string.help_report_bug_url),
-                    onClick = openUri,
-                )
-            }
-
-            item {
-                Text(
-                    text = stringResource(R.string.help_section_donate),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 16.dp),
-                )
-            }
-
-            item {
-                ContactLinkItem(
-                    label = stringResource(R.string.help_donate_github),
-                    url = stringResource(R.string.help_donate_github_url),
-                    onClick = openUri,
-                )
-            }
-
-            item {
-                ContactLinkItem(
-                    label = stringResource(R.string.help_donate_coffee),
-                    url = stringResource(R.string.help_donate_coffee_url),
                     onClick = openUri,
                 )
             }

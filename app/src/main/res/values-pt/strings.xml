@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Cliente SSH simples, avançado e de código aberto.</string>
-  <string name="service_desc">Mantém ligações SSH e de Chaves Públicas</string>
-  <string name="app_copyright">Direitos autorais © Kenny Root</string>
   <string name="title_pubkey_list">Chaves Públicas</string>
   <string name="title_port_forwards_list">Redirecionamento de portas</string>
   <string name="title_help">Ajuda</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">Editar cor %1$d</string>
   <string name="dialog_title_reset_all">Redefinir todas as cores?</string>
   <string name="dialog_message_reset_all">Isto irá redefinir todas as 256 cores para os seus valores predefinidos. Esta ação não pode ser desfeita.</string>
-  <string name="app_is_running">O ConnectBot em execução</string>
+  <string name="app_is_running">O Portal Android em execução</string>
   <string name="label_red">Vermelho</string>
   <string name="label_green">Verde</string>
   <string name="label_blue">Azul</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">Registros do aplicativo</string>
   <string name="copy_logs">Copiar logs</string>
   <string name="logs_copied">Logs copiados para a área de transferência</string>
-  <string name="logs_bug_report_info">Para relatar um erro, copie estes registros e abra um novo chamado em https://connectbot.org/bug</string>
+  <string name="logs_bug_report_info">Para relatar um erro, copie estes registros e abra um novo chamado em https://github.com/DigitalPals/portal-android/issues</string>
   <string name="no_logs_available">Nenhum registro disponível</string>
   <string name="help_section_about">Sobre</string>
   <string name="title_contact">Contato e suporte</string>
@@ -504,9 +501,6 @@
   <string name="help_website">Site</string>
   <string name="help_github">Código-fonte</string>
   <string name="help_report_bug">Relate um erro</string>
-  <string name="help_section_donate">Apoie o desenvolvimento.</string>
-  <string name="help_donate_github">GitHub Sponsors</string>
-  <string name="help_donate_coffee">Ofereça-me um café</string>
   <string name="colorscheme_default_description">Cores padrão do terminal</string>
   <string name="colorscheme_solarized_dark_description">Cores precisas para máquinas e pessoas</string>
   <string name="colorscheme_solarized_light_description">Solarized com fundo claro</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">Autenticação ao iniciar o aplicativo</string>
   <string name="pref_auth_on_launch_summary">Exija impressão digital, reconhecimento facial ou PIN do dispositivo ao abrir o aplicativo</string>
   <string name="pref_security_category">Segurança</string>
-  <string name="auth_screen_title">O ConnectBot está bloqueado</string>
+  <string name="auth_screen_title">O Portal Android está bloqueado</string>
   <string name="auth_screen_unlock_button">Toque para desbloquear</string>
-  <string name="auth_prompt_title">Desbloqueie o ConnectBot</string>
+  <string name="auth_prompt_title">Desbloqueie o Portal Android</string>
   <string name="auth_prompt_subtitle">Verifique sua identidade para continuar</string>
 </resources>

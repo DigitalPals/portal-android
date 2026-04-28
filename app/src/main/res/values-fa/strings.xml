@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">کلاینت SSH ساده، قدرتمند، کد باز</string>
-  <string name="service_desc">کانکشن‌های SSH و کلیدهای همگانی بارگذاری شده را نگه می‌دارد</string>
-  <string name="app_copyright">حق نشر © کنی روت</string>
   <string name="title_pubkey_list">کلیدهای همگانی</string>
   <string name="title_port_forwards_list">پورت فوروارد</string>
   <string name="title_help">راهنما</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">لاگ‌های برنامه</string>
   <string name="copy_logs">کپی کردن گزارش‌ها</string>
   <string name="logs_copied">لاگ‌ها در حافظه کلیپ‌بورد کپی شدند.</string>
-  <string name="logs_bug_report_info">برای گزارش یک مشکل، این گزارش‌ها را کپی کرده و یک درخواست جدید در آدرس https://connectbot.org/bug ایجاد کنید.</string>
+  <string name="logs_bug_report_info">برای گزارش یک مشکل، این گزارش‌ها را کپی کرده و یک درخواست جدید در آدرس https://github.com/DigitalPals/portal-android/issues ایجاد کنید.</string>
   <string name="no_logs_available">هیچ لاگی در دسترس نیست</string>
   <string name="help_section_about">درباره</string>
   <string name="title_contact">تماس و پشتیبانی</string>
@@ -504,9 +501,6 @@
   <string name="help_website">وب‌سایت</string>
   <string name="help_github">کد منبع</string>
   <string name="help_report_bug">گزارش یک اشکال</string>
-  <string name="help_section_donate">از توسعه این برنامه پشتیبانی کنید.</string>
-  <string name="help_donate_github">حمایت مالی از طریق گیت‌هاب</string>
-  <string name="help_donate_coffee">یک فنجان قهوه برای من بخرید</string>
   <string name="colorscheme_default_description">رنگ‌های پیش‌فرض ترمینال</string>
   <string name="colorscheme_solarized_dark_description">رنگ‌های دقیق برای ماشین‌ها و انسان‌ها</string>
   <string name="colorscheme_solarized_light_description">با پس‌زمینه روشن</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">احراز هویت هنگام شروع برنامه</string>
   <string name="pref_auth_on_launch_summary">هنگام باز کردن برنامه، درخواست اثر انگشت، تشخیص چهره یا پین دستگاه را فعال کنید.</string>
   <string name="pref_security_category">امنیت</string>
-  <string name="auth_screen_title">ConnectBot قفل شده است.</string>
+  <string name="auth_screen_title">Portal Android قفل شده است.</string>
   <string name="auth_screen_unlock_button">برای باز کردن، ضربه بزنید.</string>
-  <string name="auth_prompt_title">آنلاک کردن ConnectBot</string>
+  <string name="auth_prompt_title">آنلاک کردن Portal Android</string>
   <string name="auth_prompt_subtitle">برای ادامه، هویت خود را تأیید کنید.</string>
 </resources>

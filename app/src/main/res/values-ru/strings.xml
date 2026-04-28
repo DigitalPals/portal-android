@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Простой и мощный SSH-клиент с открытым исходным кодом.</string>
-  <string name="service_desc">Управление SSH-подключениями и загруженными публичными ключами</string>
-  <string name="app_copyright">Авторские права © Kenny Root</string>
   <string name="title_pubkey_list">Публичные ключи</string>
   <string name="title_port_forwards_list">Проброс портов</string>
   <string name="title_help">Помощь</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">Редактировать цвет %1$d</string>
   <string name="dialog_title_reset_all">Сбросить все цвета?</string>
   <string name="dialog_message_reset_all">Это приведет к сбросу всех 256 цветов к их значениям по умолчанию. Это действие нельзя отменить.</string>
-  <string name="app_is_running">ConnectBot запущен</string>
+  <string name="app_is_running">Portal Android запущен</string>
   <string name="label_red">Красный</string>
   <string name="label_green">Зеленый</string>
   <string name="label_blue">Синий</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">Журналы приложения</string>
   <string name="copy_logs">Копировать журналы</string>
   <string name="logs_copied">Журналы скопированы в буфер обмена</string>
-  <string name="logs_bug_report_info">Чтобы сообщить об ошибке скопируйте эти логи и откройте новое сообщение на https://connectbot.org/bug</string>
+  <string name="logs_bug_report_info">Чтобы сообщить об ошибке скопируйте эти логи и откройте новое сообщение на https://github.com/DigitalPals/portal-android/issues</string>
   <string name="no_logs_available">Нет доступных журналов</string>
   <string name="help_section_about">О программе</string>
   <string name="title_contact">Контакты и поддержка</string>
@@ -504,9 +501,6 @@
   <string name="help_website">Веб-сайт</string>
   <string name="help_github">Исходный код</string>
   <string name="help_report_bug">Сообщить об ошибке</string>
-  <string name="help_section_donate">Поддержите разработку</string>
-  <string name="help_donate_github">GitHub Sponsors</string>
-  <string name="help_donate_coffee">Купите мне чашку кофе</string>
   <string name="colorscheme_default_description">Цвета терминала по умолчанию</string>
   <string name="colorscheme_solarized_dark_description">Точные цвета для машин и людей</string>
   <string name="colorscheme_solarized_light_description">Соларизированный с светлым фоном</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">Аутентификация при запуске</string>
   <string name="pref_auth_on_launch_summary">Требуйте ввод отпечатка пальца, распознавание лица или PIN-код устройства при запуске приложения</string>
   <string name="pref_security_category">Безопасность</string>
-  <string name="auth_screen_title">ConnectBot заблокирован</string>
+  <string name="auth_screen_title">Portal Android заблокирован</string>
   <string name="auth_screen_unlock_button">Нажмите, чтобы разблокировать</string>
-  <string name="auth_prompt_title">Разблокируйте ConnectBot</string>
+  <string name="auth_prompt_title">Разблокируйте Portal Android</string>
   <string name="auth_prompt_subtitle">Подтвердите свою личность, чтобы продолжить</string>
 </resources>

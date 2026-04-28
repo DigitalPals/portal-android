@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Jednoduchý, výkonný, open-source SSH klient.</string>
-  <string name="service_desc">Spravuje SSH spojenia a načítané verejné kľúče</string>
   <string name="title_pubkey_list">Verejné kľúče</string>
   <string name="title_port_forwards_list">Presmerovanie portov</string>
   <string name="title_help">Nápoveda</string>
@@ -146,5 +144,5 @@
   <string name="no">Nie</string>
   <string name="yes">Áno</string>
   <string name="menu_colors_reset">Pôvodné</string>
-  <string name="app_is_running">ConnectBot je spustený</string>
+  <string name="app_is_running">Portal Android je spustený</string>
 </resources>

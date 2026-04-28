@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Sederhana, tangguh, klien SSH dengan kode terbuka.</string>
-  <string name="service_desc">"Mengelola koneksi SSH dan kunci publik  yang terrekam"</string>
-  <string name="app_copyright">Hak Cipta © Kenny Root</string>
   <string name="title_pubkey_list">Kunci Publik</string>
   <string name="title_port_forwards_list">Penerusan port</string>
   <string name="title_help">Bantuan</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">Edit Warna %1$d</string>
   <string name="dialog_title_reset_all">Atur Ulang Semua Warna?</string>
   <string name="dialog_message_reset_all">Ini akan mengatur ulang semua 256 warna ke nilai bawaannya. Tindakan ini tidak dapat dibatalkan.</string>
-  <string name="app_is_running">ConnectBot sedang berjalan</string>
+  <string name="app_is_running">Portal Android sedang berjalan</string>
   <string name="label_red">Merah</string>
   <string name="label_green">Hijau</string>
   <string name="label_blue">Biru</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">Catatan Aplikasi</string>
   <string name="copy_logs">Salin Log</string>
   <string name="logs_copied">Log disalin ke papan klip</string>
-  <string name="logs_bug_report_info">Untuk melaporkan bug, salin log ini dan buka laporan baru di https://connectbot.org/bug</string>
+  <string name="logs_bug_report_info">Untuk melaporkan bug, salin log ini dan buka laporan baru di https://github.com/DigitalPals/portal-android/issues</string>
   <string name="no_logs_available">Tidak ada log yang tersedia</string>
   <string name="help_section_about">Tentang</string>
   <string name="title_contact">Hubungi &amp; Dukungan</string>
@@ -504,9 +501,6 @@
   <string name="help_website">Situs web</string>
   <string name="help_github">Kode Sumber</string>
   <string name="help_report_bug">Laporkan Bug</string>
-  <string name="help_section_donate">Dukung Pengembangan</string>
-  <string name="help_donate_github">GitHub Sponsors</string>
-  <string name="help_donate_coffee">Belikan saya secangkir kopi</string>
   <string name="colorscheme_default_description">Warna terminal bawaan</string>
   <string name="colorscheme_solarized_dark_description">Warna yang akurat untuk mesin dan manusia</string>
   <string name="colorscheme_solarized_light_description">Solarized dengan latar belakang terang</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">Autentikasi saat peluncuran</string>
   <string name="pref_auth_on_launch_summary">Meminta sidik jari, pemindaian wajah, atau PIN perangkat saat membuka aplikasi</string>
   <string name="pref_security_category">Keamanan</string>
-  <string name="auth_screen_title">ConnectBot terkunci</string>
+  <string name="auth_screen_title">Portal Android terkunci</string>
   <string name="auth_screen_unlock_button">Ketuk untuk membuka kunci</string>
-  <string name="auth_prompt_title">Buka ConnectBot</string>
+  <string name="auth_prompt_title">Buka Portal Android</string>
   <string name="auth_prompt_subtitle">Verifikasi identitas Anda untuk melanjutkan</string>
 </resources>

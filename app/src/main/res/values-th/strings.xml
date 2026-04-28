@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">ใช้ง่าย, มีประสิทธิภาพ, โอเพนซอร์ส SSH ไคลเอนท์</string>
-  <string name="service_desc">จัดการการเชื่อมต่อ SSH และใส่กุญแจสาธารณะ</string>
   <string name="title_pubkey_list">กุญแจสาธารณะ</string>
   <string name="title_port_forwards_list">ฟอร์เวิร์ดพอร์ต</string>
   <string name="title_help">ช่วยเหลือ</string>

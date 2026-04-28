@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">简洁、强大、开源的SSH客户端。</string>
-  <string name="service_desc">维护 SSH 连接和已加载的公钥</string>
-  <string name="app_copyright">版权所有 © Kenny Root</string>
   <string name="title_pubkey_list">公钥</string>
   <string name="title_port_forwards_list">端口转发</string>
   <string name="title_help">帮助</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">编辑颜色 %1$d</string>
   <string name="dialog_title_reset_all">重置所有颜色？</string>
   <string name="dialog_message_reset_all">这将把所有 256 种颜色重置为其默认值。此操作无法撤销。</string>
-  <string name="app_is_running">ConnectBot 正在运行</string>
+  <string name="app_is_running">Portal Android 正在运行</string>
   <string name="label_red">红色</string>
   <string name="label_green">绿色</string>
   <string name="label_blue">蓝色</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">应用程序日志</string>
   <string name="copy_logs">复制日志</string>
   <string name="logs_copied">日志已复制到剪贴板</string>
-  <string name="logs_bug_report_info">如需报告错误，请复制这些日志，然后在 https://connectbot.org/bug 上提交新的问题</string>
+  <string name="logs_bug_report_info">如需报告错误，请复制这些日志，然后在 https://github.com/DigitalPals/portal-android/issues 上提交新的问题</string>
   <string name="no_logs_available">没有可用的日志</string>
   <string name="help_section_about">关于</string>
   <string name="title_contact">联系方式和技术支持</string>
@@ -504,9 +501,6 @@
   <string name="help_website">网站</string>
   <string name="help_github">源代码</string>
   <string name="help_report_bug">报告一个错误</string>
-  <string name="help_section_donate">支持开发</string>
-  <string name="help_donate_github">GitHub 赞助</string>
-  <string name="help_donate_coffee">请我喝杯咖啡</string>
   <string name="colorscheme_default_description">默认终端颜色</string>
   <string name="colorscheme_solarized_dark_description">为机器和人为您提供精准色彩</string>
   <string name="colorscheme_solarized_light_description">使用浅色背景的 Solarized 主题</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">启动时进行身份验证</string>
   <string name="pref_auth_on_launch_summary">打开应用时，需要指纹、面部识别或设备密码验证</string>
   <string name="pref_security_category">安全性</string>
-  <string name="auth_screen_title">ConnectBot 已被锁定</string>
+  <string name="auth_screen_title">Portal Android 已被锁定</string>
   <string name="auth_screen_unlock_button">点击以解锁</string>
-  <string name="auth_prompt_title">解锁 ConnectBot</string>
+  <string name="auth_prompt_title">解锁 Portal Android</string>
   <string name="auth_prompt_subtitle">请验证您的身份以继续</string>
 </resources>

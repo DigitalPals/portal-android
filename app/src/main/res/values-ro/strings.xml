@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Un client SSH simplu, flexibil, open-source</string>
-  <string name="service_desc">Managementul conexiunilor si al cheilor publice</string>
   <string name="title_pubkey_list">Chei publice</string>
   <string name="title_port_forwards_list">Redirectări trafic</string>
   <string name="title_help">Ajutor</string>

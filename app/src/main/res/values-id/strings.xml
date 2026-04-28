@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Sederhana, tangguh, klien SSH dengan kode terbuka.</string>
-  <string name="service_desc">"Mengelola koneksi SSH dan kunci publik  yang terrekam"</string>
 	<string name="title_pubkey_list">Kunci Publik</string>
 	<string name="title_help">Bantuan</string>
   <string name="title_colors">Warna</string>
@@ -153,7 +151,7 @@
   <string name="no">Tidak</string>
   <string name="yes">Ya</string>
   <string name="menu_colors_reset">Atur ulang</string>
-  <string name="app_is_running">ConnectBot sedang berjalan</string>
+  <string name="app_is_running">Portal Android sedang berjalan</string>
 	<string name="colors_fg_label">WD: %1$d</string>
   <string name="color_bg_label">WB: %1$d</string>
   <string name="image_description_connected">Tersambung.</string>

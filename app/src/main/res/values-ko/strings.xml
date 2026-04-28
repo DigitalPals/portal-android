@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">간단하고, 강력한, 오픈소스 SSH 클라이언트.</string>
-  <string name="service_desc">SSH 연결을 유지하고 로드된 공개 키를 관리합니다</string>
-  <string name="app_copyright">Copyright © Kenny Root</string>
   <string name="title_pubkey_list">공개키</string>
   <string name="title_port_forwards_list">포트 포워딩</string>
   <string name="title_help">도움말</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">색상 편집 %1$d</string>
   <string name="dialog_title_reset_all">모든 색상을 초기화합니까?</string>
   <string name="dialog_message_reset_all">이 작업은 모든 256色的 색상을 기본값으로 재설정합니다. 이 동작은 실행 취소할 수 없습니다.</string>
-  <string name="app_is_running">ConnectBot 실행 중</string>
+  <string name="app_is_running">Portal Android 실행 중</string>
   <string name="label_red">레드</string>
   <string name="label_green">그린</string>
   <string name="label_blue">블루</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">어플리케이션 로그</string>
   <string name="copy_logs">로그 복사하기</string>
   <string name="logs_copied">클립보드로 로그 복사됨</string>
-  <string name="logs_bug_report_info">버그를報告하려면 이러한 로그를 복사하고 https://connectbot.org/bug에서 새로운 문제를 열어주세요</string>
+  <string name="logs_bug_report_info">버그를報告하려면 이러한 로그를 복사하고 https://github.com/DigitalPals/portal-android/issues에서 새로운 문제를 열어주세요</string>
   <string name="no_logs_available">로그가 사용할 수 없음</string>
   <string name="help_section_about">앱에 관하여</string>
   <string name="title_contact">문의 및 지원</string>
@@ -504,9 +501,6 @@
   <string name="help_website">웹사이트</string>
   <string name="help_github">소스 코드</string>
   <string name="help_report_bug">버그 신고</string>
-  <string name="help_section_donate">개발 지원</string>
-  <string name="help_donate_github">GitHub 스폰서</string>
-  <string name="help_donate_coffee">커피 한 잔 사주세요</string>
   <string name="colorscheme_default_description">기본 터미널 색상</string>
   <string name="colorscheme_solarized_dark_description">기계와 사람을 위한 정밀 색상</string>
   <string name="colorscheme_solarized_light_description">솔라라이즈드 라이트 배경색 사용</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">\"앱 실행 시 인증\"</string>
   <string name="pref_auth_on_launch_summary">앱을 실행할 때 지문, 얼굴 인식 또는 기기 PIN을 요구합니다</string>
   <string name="pref_security_category">보안</string>
-  <string name="auth_screen_title">ConnectBot이 잠겨 있습니다</string>
+  <string name="auth_screen_title">Portal Android이 잠겨 있습니다</string>
   <string name="auth_screen_unlock_button">\"잠금 해제하려면 탭하세요\"</string>
-  <string name="auth_prompt_title">ConnectBot 잠금 해제</string>
+  <string name="auth_prompt_title">Portal Android 잠금 해제</string>
   <string name="auth_prompt_subtitle">계속하려면 본인 정보를 확인하세요</string>
 </resources>

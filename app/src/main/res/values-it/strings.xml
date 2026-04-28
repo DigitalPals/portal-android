@@ -1,8 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Un client SSH semplice, potente ed open source.</string>
-  <string name="service_desc">Mantieni le connessioni SSH e le chiavi pubbliche caricate</string>
-  <string name="app_copyright">Copyright © Kenny Root</string>
   <string name="title_pubkey_list">Chiavi pubbliche</string>
   <string name="title_port_forwards_list">Inoltro porte</string>
   <string name="title_help">Guida</string>
@@ -344,7 +341,7 @@
   <string name="dialog_title_edit_color">Modifica Colore %1$d</string>
   <string name="dialog_title_reset_all">Reimposta tutti i colori?</string>
   <string name="dialog_message_reset_all">Questa operazione ripristinerà i valori predefiniti di tutti i 256 colori. Questa azione non può essere annullata.</string>
-  <string name="app_is_running">ConnectBot è in esecuzione</string>
+  <string name="app_is_running">Portal Android è in esecuzione</string>
   <string name="label_red">Rosso</string>
   <string name="label_green">Verde</string>
   <string name="label_blue">Blu</string>
@@ -410,7 +407,7 @@
   <string name="empty_pubkeys_message">Nessuna chiave trovata.</string>
   <string name="empty_port_forwards_message">Nessun inoltro di porta configurato.</string>
   <string name="empty_urls_message">Nessun URL trovato nel buffer del terminale</string>
-  <string name="console_default_title">Console si riferisce alla finestra del terminale che mostra l\'output e accetta l\'input dell\'utente per eseguire comandi e interagire con il sistema operativo o un\'applicazione, in questo caso il terminale emulatore incluso in ConnectBot</string>
+  <string name="console_default_title">Console si riferisce alla finestra del terminale che mostra l\'output e accetta l\'input dell\'utente per eseguire comandi e interagire con il sistema operativo o un\'applicazione, in questo caso il terminale emulatore incluso in Portal Android</string>
   <string name="host_editor_quick_connect_label">Collegamento rapido</string>
   <string name="host_editor_quick_connect_placeholder">utente\@nomehost:porta</string>
   <string name="host_editor_quick_connect_example">Esempio root\@192.168.1.122</string>
@@ -496,7 +493,7 @@
   <string name="logs_title">Registri dell\'applicazione</string>
   <string name="copy_logs">Copia registri</string>
   <string name="logs_copied">Registri copiati negli appunti</string>
-  <string name="logs_bug_report_info">Per segnalare un errore copia questi log e apri una nuova richiesta su https://connectbot.org/bug</string>
+  <string name="logs_bug_report_info">Per segnalare un errore copia questi log e apri una nuova richiesta su https://github.com/DigitalPals/portal-android/issues</string>
   <string name="no_logs_available">Nessun log disponibile</string>
   <string name="help_section_about">Informazioni</string>
   <string name="title_contact">Contatti e assistenza</string>
@@ -504,9 +501,6 @@
   <string name="help_website">Sito web</string>
   <string name="help_github">Codice sorgente</string>
   <string name="help_report_bug">Segnala un bug</string>
-  <string name="help_section_donate">Supporta lo sviluppo</string>
-  <string name="help_donate_github">GitHub Sponsors</string>
-  <string name="help_donate_coffee">Offrimi un caffè</string>
   <string name="colorscheme_default_description">Colori del terminale predefiniti</string>
   <string name="colorscheme_solarized_dark_description">Colori precisi per macchine e persone</string>
   <string name="colorscheme_solarized_light_description">Solarizzato con sfondo chiaro</string>
@@ -552,8 +546,8 @@
   <string name="pref_auth_on_launch_title">Autenticazione all\'avvio</string>
   <string name="pref_auth_on_launch_summary">Richiedi l\'impronta digitale, il riconoscimento facciale o il PIN del dispositivo all\'apertura dell\'app</string>
   <string name="pref_security_category">Sicurezza</string>
-  <string name="auth_screen_title">ConnectBot è bloccato</string>
+  <string name="auth_screen_title">Portal Android è bloccato</string>
   <string name="auth_screen_unlock_button">Tocca per sbloccare</string>
-  <string name="auth_prompt_title">Sblocca ConnectBot</string>
+  <string name="auth_prompt_title">Sblocca Portal Android</string>
   <string name="auth_prompt_subtitle">Verifica la tua identità per continuare</string>
 </resources>

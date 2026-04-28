@@ -1,7 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-  <string name="app_desc">Едноставен но моќен SSH клиент со отворен код.</string>
-  <string name="service_desc">Ги одржува SSH конекциите и вчитаните pub клучеви</string>
   <string name="title_pubkey_list">Pub клучеви</string>
   <string name="title_port_forwards_list">Проследување на порти</string>
   <string name="title_help">Помош</string>

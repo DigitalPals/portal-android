@@ -81,4 +81,58 @@ class PortalHubRepositoryTest {
         assertThat(host.connectable).isTrue()
         assertThat(host.vaultKeyId).isEqualTo("key-1")
     }
+
+    @Test
+    fun hostUpdatePreservesUnknownFields() {
+        val sync = """
+            {
+              "services": {
+                "hosts": {
+                  "revision": "3",
+                  "payload": {
+                    "profile": "default",
+                    "hosts": [
+                      {
+                        "id": "host-1",
+                        "name": "prod",
+                        "hostname": "prod.example.com",
+                        "port": 2222,
+                        "username": "deploy",
+                        "protocol": "ssh",
+                        "portal_hub_enabled": true,
+                        "custom_desktop_field": "keep-me",
+                        "auth": {
+                          "vault_key_id": "key-1"
+                        }
+                      }
+                    ]
+                  },
+                  "tombstones": ["old-host"]
+                }
+              }
+            }
+        """.trimIndent().toHubSyncState()
+
+        val payload = sync.updateHost(
+            id = "host-1",
+            name = "staging",
+            hostname = "staging.example.com",
+            port = 2200,
+            username = "admin",
+            portalHubEnabled = false,
+            vaultKeyId = "key-2",
+        )
+        val updatedHost = payload.getJSONArray("hosts").getJSONObject(0)
+
+        assertThat(payload.getString("profile")).isEqualTo("default")
+        assertThat(updatedHost.getString("name")).isEqualTo("staging")
+        assertThat(updatedHost.getString("hostname")).isEqualTo("staging.example.com")
+        assertThat(updatedHost.getInt("port")).isEqualTo(2200)
+        assertThat(updatedHost.getString("username")).isEqualTo("admin")
+        assertThat(updatedHost.getBoolean("portal_hub_enabled")).isFalse()
+        assertThat(updatedHost.getString("protocol")).isEqualTo("ssh")
+        assertThat(updatedHost.getString("custom_desktop_field")).isEqualTo("keep-me")
+        assertThat(updatedHost.getJSONObject("auth").getString("type")).isEqualTo("public_key")
+        assertThat(updatedHost.getJSONObject("auth").getString("vault_key_id")).isEqualTo("key-2")
+    }
 }

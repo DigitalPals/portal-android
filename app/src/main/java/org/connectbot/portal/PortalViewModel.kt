@@ -177,6 +177,89 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         }
     }
 
+    fun editHost(id: String) {
+        val host = state.value.hosts.firstOrNull { it.id == id } ?: return
+        _state.update {
+            it.copy(
+                editHostId = id,
+                editHostName = host.name,
+                editHostHostname = host.hostname,
+                editHostPort = host.port.toString(),
+                editHostUsername = host.username,
+                editHostPortalHubEnabled = host.portalHubEnabled,
+                editHostVaultKeyId = host.vaultKeyId,
+                error = null,
+            )
+        }
+    }
+
+    fun updateEditHostName(value: String) {
+        _state.update { it.copy(editHostName = value, error = null) }
+    }
+
+    fun updateEditHostHostname(value: String) {
+        _state.update { it.copy(editHostHostname = value, error = null) }
+    }
+
+    fun updateEditHostPort(value: String) {
+        _state.update { it.copy(editHostPort = value, error = null) }
+    }
+
+    fun updateEditHostUsername(value: String) {
+        _state.update { it.copy(editHostUsername = value, error = null) }
+    }
+
+    fun updateEditHostPortalHubEnabled(value: Boolean) {
+        _state.update { it.copy(editHostPortalHubEnabled = value, error = null) }
+    }
+
+    fun updateEditHostVaultKeyId(value: String?) {
+        _state.update { it.copy(editHostVaultKeyId = value, error = null) }
+    }
+
+    fun cancelEditHost() {
+        _state.update { it.clearHostEditor() }
+    }
+
+    fun saveHostDetails() {
+        val current = state.value
+        val id = current.editHostId ?: return
+        val name = current.editHostName.trim()
+        val hostname = current.editHostHostname.trim()
+        val port = current.editHostPort.trim().toIntOrNull()
+        val username = current.editHostUsername.trim()
+
+        if (name.isBlank()) {
+            _state.update { it.copy(error = "Host name is required") }
+            return
+        }
+        if (hostname.isBlank()) {
+            _state.update { it.copy(error = "Hostname is required") }
+            return
+        }
+        if (port == null || port !in 1..65535) {
+            _state.update { it.copy(error = "Port must be between 1 and 65535") }
+            return
+        }
+
+        viewModelScope.launch {
+            runBusy {
+                val sync = state.value.sync ?: throw IllegalStateException("No sync state loaded")
+                val payload = sync.updateHost(
+                    id = id,
+                    name = name,
+                    hostname = hostname,
+                    port = port,
+                    username = username,
+                    portalHubEnabled = state.value.editHostPortalHubEnabled,
+                    vaultKeyId = state.value.editHostVaultKeyId,
+                )
+                updateHosts(payload)
+                _state.update { it.clearHostEditor() }
+            }
+        }
+    }
+
     fun updateVaultSecretInput(value: String) {
         _state.update { it.copy(vaultSecretInput = value, error = null) }
     }
@@ -430,6 +513,16 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         openTerminal(HubClient.terminalTarget(session), "${session.targetUser}@${session.targetHost}")
     }
 
+    fun killSession(session: HubSession) {
+        viewModelScope.launch {
+            runBusy {
+                repository.killSession(session.sessionId)
+                val sessions = repository.listSessions()
+                _state.update { it.copy(sessions = sessions, error = null) }
+            }
+        }
+    }
+
     fun detachTerminal() {
         terminalDetachRequested = true
         val currentTerminal = terminal
@@ -536,6 +629,18 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         }
     }
 
+    private suspend fun updateHosts(payload: org.json.JSONObject) {
+        val sync = repository.putHosts(payload)
+        _state.update {
+            it.copy(
+                sync = sync,
+                hosts = sync.hosts,
+                selected = PortalTab.Hosts,
+                error = null,
+            )
+        }
+    }
+
     private fun validateVaultSecret(secret: String, vault: HubVaultConfig) {
         require(secret.isNotBlank()) { "Vault secret is required" }
         vault.keys.firstOrNull()?.let {
@@ -585,6 +690,13 @@ data class PortalUiState(
     val newVaultPrivateKey: String = "",
     val editVaultKeyId: String? = null,
     val editVaultKeyName: String = "",
+    val editHostId: String? = null,
+    val editHostName: String = "",
+    val editHostHostname: String = "",
+    val editHostPort: String = "",
+    val editHostUsername: String = "",
+    val editHostPortalHubEnabled: Boolean = false,
+    val editHostVaultKeyId: String? = null,
     val settingsSection: SettingsSection = SettingsSection.Home,
 )
 
@@ -606,3 +718,14 @@ enum class SettingsSection {
 
 
 private fun String.ensureTrailingNewline(): String = if (endsWith("\n")) this else "$this\n"
+
+private fun PortalUiState.clearHostEditor(): PortalUiState =
+    copy(
+        editHostId = null,
+        editHostName = "",
+        editHostHostname = "",
+        editHostPort = "",
+        editHostUsername = "",
+        editHostPortalHubEnabled = false,
+        editHostVaultKeyId = null,
+    )

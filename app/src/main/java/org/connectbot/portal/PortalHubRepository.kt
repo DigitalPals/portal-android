@@ -102,6 +102,8 @@ class PortalHubRepository(
 
     suspend fun putVault(vault: HubVaultConfig): HubSyncState = client.putVault(vault)
 
+    suspend fun putHosts(payload: JSONObject): HubSyncState = client.putHosts(payload)
+
     suspend fun createVaultEnrollment(
         deviceName: String,
         publicKeyDerBase64: String,
@@ -111,6 +113,10 @@ class PortalHubRepository(
     suspend fun loadVaultEnrollment(id: String): VaultEnrollment = client.loadVaultEnrollment(id)
 
     suspend fun listSessions(): List<HubSession> = client.listSessions()
+
+    suspend fun killSession(sessionId: String) {
+        client.killSession(sessionId)
+    }
 }
 
 object PortalHubUrlNormalizer {
@@ -127,8 +133,11 @@ object PortalHubUrlNormalizer {
 }
 
 fun String.toHubSyncState(): HubSyncState {
-    val json = JSONObject(this)
-    val services = json.objectMap("services").mapValues { (_, service) ->
+    return JSONObject(this).toHubSyncState()
+}
+
+fun JSONObject.toHubSyncState(): HubSyncState {
+    val services = objectMap("services").mapValues { (_, service) ->
         HubServiceState(
             revision = service.optString("revision", "0"),
             payload = service.optJSONObject("payload") ?: JSONObject(),

@@ -1,5 +1,7 @@
 package org.connectbot.portal
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Logout
@@ -21,6 +25,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -30,15 +35,21 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -172,6 +183,7 @@ private fun SetupScreen(state: PortalUiState, viewModel: PortalViewModel) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HostsScreen(state: PortalUiState, viewModel: PortalViewModel) {
     if (state.hosts.isEmpty()) {
@@ -182,7 +194,12 @@ private fun HostsScreen(state: PortalUiState, viewModel: PortalViewModel) {
         items(state.hosts, key = { it.id }) { host ->
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = { viewModel.connect(host) },
+                        onLongClick = { viewModel.editHost(host.id) },
+                    ),
             ) {
                 Column(Modifier.padding(12.dp)) {
                     Text(host.name, style = MaterialTheme.typography.titleMedium)
@@ -195,14 +212,173 @@ private fun HostsScreen(state: PortalUiState, viewModel: PortalViewModel) {
             }
         }
     }
+
+    if (state.editHostId != null) {
+        EditHostDialog(
+            state = state,
+            host = state.hosts.firstOrNull { it.id == state.editHostId },
+            viewModel = viewModel,
+        )
+    }
 }
 
+@Composable
+private fun EditHostDialog(
+    state: PortalUiState,
+    host: PortalHost?,
+    viewModel: PortalViewModel,
+) {
+    var showVaultKeyPicker by remember(state.editHostId) { mutableStateOf(false) }
+    val vaultKeys = state.sync?.vault?.keys.orEmpty()
+    val selectedVaultKey = vaultKeys.firstOrNull { it.id == state.editHostVaultKeyId }
+
+    AlertDialog(
+        onDismissRequest = viewModel::cancelEditHost,
+        title = { Text("Edit host") },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedTextField(
+                    value = state.editHostName,
+                    onValueChange = viewModel::updateEditHostName,
+                    label = { Text("Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = state.editHostUsername,
+                    onValueChange = viewModel::updateEditHostUsername,
+                    label = { Text("Username") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = state.editHostHostname,
+                    onValueChange = viewModel::updateEditHostHostname,
+                    label = { Text("Host") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = state.editHostPort,
+                    onValueChange = viewModel::updateEditHostPort,
+                    label = { Text("Port") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Portal Hub", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "Enable this host for Android terminal sessions",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                        )
+                    }
+                    Switch(
+                        checked = state.editHostPortalHubEnabled,
+                        onCheckedChange = viewModel::updateEditHostPortalHubEnabled,
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Vault key", style = MaterialTheme.typography.titleSmall)
+                    OutlinedButton(
+                        onClick = { showVaultKeyPicker = true },
+                        enabled = vaultKeys.isNotEmpty() || state.editHostVaultKeyId != null,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(selectedVaultKey?.name ?: "No vault key")
+                    }
+                    selectedVaultKey?.fingerprint?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+                Text(
+                    text = "Protocol: ${host?.protocol ?: "ssh"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                )
+                state.error?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = viewModel::saveHostDetails, enabled = !state.loading) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = viewModel::cancelEditHost) {
+                Text("Cancel")
+            }
+        },
+    )
+
+    if (showVaultKeyPicker) {
+        AlertDialog(
+            onDismissRequest = { showVaultKeyPicker = false },
+            title = { Text("Select vault key") },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    TextButton(
+                        onClick = {
+                            viewModel.updateEditHostVaultKeyId(null)
+                            showVaultKeyPicker = false
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("No vault key")
+                    }
+                    vaultKeys.forEach { key ->
+                        TextButton(
+                            onClick = {
+                                viewModel.updateEditHostVaultKeyId(key.id)
+                                showVaultKeyPicker = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(key.name)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showVaultKeyPicker = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SessionsScreen(state: PortalUiState, viewModel: PortalViewModel) {
     if (state.sessions.isEmpty()) {
         EmptyText("No active Portal Hub sessions.")
         return
     }
+    var sessionToKill by remember { mutableStateOf<HubSession?>(null) }
     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(state.sessions, key = { it.sessionId }) { session ->
             val host = state.hosts.firstOrNull {
@@ -213,7 +389,12 @@ private fun SessionsScreen(state: PortalUiState, viewModel: PortalViewModel) {
             val hostName = host?.name?.ifBlank { null } ?: session.targetHost
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .combinedClickable(
+                        onClick = { viewModel.resume(session) },
+                        onLongClick = { sessionToKill = session },
+                    ),
             ) {
                 Column(Modifier.padding(12.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
@@ -258,5 +439,30 @@ private fun SessionsScreen(state: PortalUiState, viewModel: PortalViewModel) {
                 }
             }
         }
+    }
+    sessionToKill?.let { session ->
+        AlertDialog(
+            onDismissRequest = { sessionToKill = null },
+            title = { Text("Kill session") },
+            text = {
+                Text("Kill ${session.targetUser}@${session.targetHost}:${session.targetPort}?")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        sessionToKill = null
+                        viewModel.killSession(session)
+                    },
+                    enabled = !state.loading,
+                ) {
+                    Text("Kill")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { sessionToKill = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }

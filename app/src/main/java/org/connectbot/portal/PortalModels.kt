@@ -106,6 +106,55 @@ data class HubSyncState(
 
     val vault: HubVaultConfig
         get() = HubVaultConfig.fromJson(services["vault"]?.payload)
+
+    fun updateHost(
+        id: String,
+        name: String,
+        hostname: String,
+        port: Int,
+        username: String,
+        portalHubEnabled: Boolean,
+        vaultKeyId: String?,
+    ): JSONObject {
+        val currentPayload = services["hosts"]?.payload ?: JSONObject()
+        val updatedPayload = JSONObject(currentPayload.toString())
+        val currentHosts = currentPayload.optJSONArray("hosts") ?: JSONArray()
+        val updatedHosts = JSONArray()
+        var found = false
+
+        for (index in 0 until currentHosts.length()) {
+            val currentHost = currentHosts.optJSONObject(index) ?: continue
+            val updatedHost = JSONObject(currentHost.toString())
+            if (updatedHost.optString("id") == id) {
+                found = true
+                updatedHost
+                    .put("name", name)
+                    .put("hostname", hostname)
+                    .put("port", port)
+                    .put("username", username)
+                    .put("portal_hub_enabled", portalHubEnabled)
+                val auth = updatedHost.optJSONObject("auth")?.let { JSONObject(it.toString()) }
+                    ?: JSONObject()
+                if (vaultKeyId.isNullOrBlank()) {
+                    auth.remove("vault_key_id")
+                    if (updatedHost.has("auth")) {
+                        updatedHost.put("auth", auth)
+                    }
+                } else {
+                    updatedHost.put(
+                        "auth",
+                        auth
+                            .put("type", "public_key")
+                            .put("vault_key_id", vaultKeyId),
+                    )
+                }
+            }
+            updatedHosts.put(updatedHost)
+        }
+
+        require(found) { "Host was not found in the synced Portal Hub hosts" }
+        return updatedPayload.put("hosts", updatedHosts)
+    }
 }
 
 fun JSONObject.objectMap(name: String): Map<String, JSONObject> {
@@ -113,4 +162,5 @@ fun JSONObject.objectMap(name: String): Map<String, JSONObject> {
     return root.keys().asSequence().associateWith { root.getJSONObject(it) }
 }
 
-fun JSONArray.toStringList(): List<String> = (0 until length()).map { optString(it) }
+fun JSONArray?.toStringList(): List<String> =
+    if (this == null) emptyList() else (0 until length()).map { optString(it) }

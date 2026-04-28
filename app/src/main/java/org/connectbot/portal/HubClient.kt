@@ -133,29 +133,30 @@ class HubClient(
                 .build()
         }
         store.saveSyncSnapshot(json.toString())
-        val services = json.objectMap("services").mapValues { (_, raw) ->
-            HubServiceState(
-                revision = raw.optString("revision", "0"),
-                payload = raw.optJSONObject("payload") ?: JSONObject(),
-                tombstones = raw.optJSONArray("tombstones").toStringList(),
-            )
-        }
-        return HubSyncState(services)
+        return json.toHubSyncState()
     }
 
     suspend fun putVault(vault: HubVaultConfig): HubSyncState {
+        return putSyncService("vault", vault.toJson())
+    }
+
+    suspend fun putHosts(payload: JSONObject): HubSyncState {
+        return putSyncService("hosts", payload)
+    }
+
+    private suspend fun putSyncService(name: String, payload: JSONObject): HubSyncState {
         val current = syncState()
-        val currentVault = current.services["vault"]
+        val currentService = current.services[name]
         val body = JSONObject()
             .put(
                 "services",
                 JSONObject()
                     .put(
-                        "vault",
+                        name,
                         JSONObject()
-                            .put("expected_revision", currentVault?.revision ?: "0")
-                            .put("payload", vault.toJson())
-                            .put("tombstones", currentVault?.tombstones ?: emptyList<String>()),
+                            .put("expected_revision", currentService?.revision ?: "0")
+                            .put("payload", payload)
+                            .put("tombstones", currentService?.tombstones ?: emptyList<String>()),
                     ),
             )
             .toString()
@@ -168,14 +169,7 @@ class HubClient(
                 .build()
         }
         store.saveSyncSnapshot(json.toString())
-        val services = json.objectMap("services").mapValues { (_, raw) ->
-            HubServiceState(
-                revision = raw.optString("revision", "0"),
-                payload = raw.optJSONObject("payload") ?: JSONObject(),
-                tombstones = raw.optJSONArray("tombstones").toStringList(),
-            )
-        }
-        return HubSyncState(services)
+        return json.toHubSyncState()
     }
 
     suspend fun createVaultEnrollment(deviceName: String, publicKeyDerBase64: String): VaultEnrollment {
@@ -229,6 +223,16 @@ class HubClient(
             }
     }
 
+    suspend fun killSession(sessionId: String) {
+        authorizedUnit { token ->
+            Request.Builder()
+                .url("${store.hubUrl}/api/sessions/${sessionId.urlEncode()}")
+                .header("Authorization", "Bearer $token")
+                .delete()
+                .build()
+        }
+    }
+
     fun openTerminal(
         target: TerminalTarget,
         listener: TerminalListener,
@@ -254,6 +258,19 @@ class HubClient(
             first.close()
             val refreshed = refresh(tokens.refreshToken)
             executeJson(builder(refreshed.accessToken))
+        }
+
+    private suspend fun authorizedUnit(builder: (String) -> Request) =
+        withContext(Dispatchers.IO) {
+            val tokens = store.loadTokens() ?: throw IllegalStateException("Portal Hub is not authenticated")
+            val first = http.newCall(builder(tokens.accessToken)).execute()
+            if (first.code != 401) {
+                first.use { it.throwIfFailed() }
+                return@withContext
+            }
+            first.close()
+            val refreshed = refresh(tokens.refreshToken)
+            http.newCall(builder(refreshed.accessToken)).execute().use { it.throwIfFailed() }
         }
 
     private fun refresh(refreshToken: String): HubTokens {
@@ -283,6 +300,13 @@ class HubClient(
             throw IllegalStateException("Portal Hub request failed (${code}): $bodyText")
         }
         return JSONObject(bodyText)
+    }
+
+    private fun Response.throwIfFailed() {
+        val bodyText = body?.string().orEmpty()
+        if (!isSuccessful) {
+            throw IllegalStateException("Portal Hub request failed (${code}): $bodyText")
+        }
     }
 
     private fun randomUrlToken(bytes: Int): String {

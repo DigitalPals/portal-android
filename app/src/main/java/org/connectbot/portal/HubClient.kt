@@ -209,7 +209,7 @@ class HubClient(
     suspend fun listSessions(): List<HubSession> {
         val json = authorizedJson { token ->
             Request.Builder()
-                .url("${store.hubUrl}/api/sessions?active=true&include_preview=true&preview_bytes=524288")
+                .url("${store.hubUrl}/api/sessions?active=true")
                 .header("Authorization", "Bearer $token")
                 .get()
                 .build()
@@ -218,20 +218,13 @@ class HubClient(
         return (0 until sessions.length())
             .mapNotNull { sessions.optJSONObject(it) }
             .map {
-                val previewBase64 = it.optString("preview_base64")
-                val preview = if (previewBase64.isBlank()) {
-                    ""
-                } else {
-                    String(Base64.decode(previewBase64, Base64.DEFAULT), Charsets.UTF_8)
-                }
                 HubSession(
                     sessionId = it.optString("session_id"),
                     targetHost = it.optString("target_host"),
                     targetPort = it.optInt("target_port", 22),
                     targetUser = it.optString("target_user"),
+                    createdAt = it.optString("created_at"),
                     updatedAt = it.optString("updated_at"),
-                    preview = preview,
-                    previewTruncated = it.optBoolean("preview_truncated"),
                 )
             }
     }

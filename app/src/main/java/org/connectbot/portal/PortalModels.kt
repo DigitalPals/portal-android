@@ -48,9 +48,8 @@ data class HubSession(
     val targetHost: String,
     val targetPort: Int,
     val targetUser: String,
+    val createdAt: String,
     val updatedAt: String,
-    val preview: String,
-    val previewTruncated: Boolean,
 )
 
 data class HubServiceState(

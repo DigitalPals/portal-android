@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,17 +23,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -53,6 +58,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,13 +68,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -78,6 +88,13 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.connectbot.service.TerminalKeyListener
+import org.connectbot.terminal.DelKeyMode
+import org.connectbot.terminal.Terminal
+import org.connectbot.terminal.VTermKey
+import org.connectbot.ui.components.TERMINAL_KEYBOARD_HEIGHT_DP
+import org.connectbot.util.TerminalFont
+import org.connectbot.util.rememberTerminalTypefaceFromStoredValue
 import org.json.JSONObject
 
 class PortalMainActivity : ComponentActivity() {
@@ -124,6 +141,8 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
             hubUrl = store.hubUrl.ifBlank { "https://portal-hub.example.ts.net" },
             vaultSecretStored = store.loadVaultSecret() != null,
             vaultEnrollmentId = store.loadVaultEnrollmentId(),
+            terminalFontFamily = store.terminalFontFamily,
+            terminalFontSize = store.terminalFontSize,
         ),
     )
     val state: StateFlow<PortalUiState> = _state
@@ -218,6 +237,17 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         _state.update { it.copy(selected = tab) }
     }
 
+    fun updateTerminalFontFamily(value: String) {
+        store.terminalFontFamily = value
+        _state.update { it.copy(terminalFontFamily = value) }
+    }
+
+    fun updateTerminalFontSize(value: Float) {
+        val coerced = value.coerceIn(6f, 30f)
+        store.terminalFontSize = coerced
+        _state.update { it.copy(terminalFontSize = coerced) }
+    }
+
     fun signOut() {
         terminal?.close()
         terminal = null
@@ -227,6 +257,8 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
                 hubUrl = store.hubUrl.ifBlank { it.hubUrl },
                 vaultSecretStored = store.loadVaultSecret() != null,
                 vaultEnrollmentId = store.loadVaultEnrollmentId(),
+                terminalFontFamily = store.terminalFontFamily,
+                terminalFontSize = store.terminalFontSize,
             )
         }
     }
@@ -520,30 +552,30 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         openTerminal(HubClient.terminalTarget(session), "${session.targetUser}@${session.targetHost}")
     }
 
-    fun sendTerminalInput() {
-        val input = state.value.terminalInput
-        if (input.isEmpty()) return
-        terminal?.send(input + "\n")
-        _state.update { it.copy(terminalInput = "") }
-    }
-
-    fun updateTerminalInput(value: String) {
-        _state.update { it.copy(terminalInput = value) }
-    }
-
     fun detachTerminal() {
         terminal?.close()
         terminal = null
-        _state.update { it.copy(terminalConnected = false, terminalStatus = "Detached") }
+        _state.update {
+            it.copy(
+                selected = PortalTab.Sessions,
+                terminalConnected = false,
+                terminalStatus = "Detached",
+                terminalSession = null,
+            )
+        }
     }
 
     private fun openTerminal(target: TerminalTarget, title: String) {
         terminal?.close()
+        val terminalSession = PortalTerminalSession(
+            onInput = { data -> terminal?.send(data) },
+            onResize = { columns, rows -> terminal?.resize(columns, rows) },
+        )
         _state.update {
             it.copy(
                 selected = PortalTab.Terminal,
                 terminalTitle = title,
-                terminalText = "",
+                terminalSession = terminalSession,
                 terminalStatus = "Connecting...",
                 terminalConnected = false,
                 error = null,
@@ -557,18 +589,28 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
                 }
 
                 override fun onOutput(text: String) {
-                    _state.update { current ->
-                        val next = (current.terminalText + text).takeLast(80_000)
-                        current.copy(terminalText = next)
-                    }
+                    terminalSession.writeOutput(text.toByteArray(Charsets.UTF_8))
+                }
+
+                override fun onOutput(bytes: ByteArray) {
+                    terminalSession.writeOutput(bytes)
                 }
 
                 override fun onError(message: String) {
+                    terminalSession.writeOutput("\r\nPortal Hub terminal error: $message\r\n".toByteArray(Charsets.UTF_8))
                     _state.update { it.copy(error = message, terminalStatus = "Error") }
                 }
 
                 override fun onClosed() {
-                    _state.update { it.copy(terminalConnected = false, terminalStatus = "Disconnected") }
+                    terminal = null
+                    _state.update {
+                        it.copy(
+                            selected = PortalTab.Sessions,
+                            terminalConnected = false,
+                            terminalStatus = "Disconnected",
+                            terminalSession = null,
+                        )
+                    }
                 }
             },
         )
@@ -601,7 +643,7 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
             it.copy(
                 sync = sync,
                 hosts = sync.hosts,
-                selected = PortalTab.Vault,
+                selected = PortalTab.Settings,
                 vaultActionMessage = message,
                 error = null,
             )
@@ -653,10 +695,11 @@ data class PortalUiState(
     val sessions: List<HubSession> = emptyList(),
     val selected: PortalTab = PortalTab.Setup,
     val terminalTitle: String = "Terminal",
-    val terminalText: String = "",
-    val terminalInput: String = "",
+    val terminalSession: PortalTerminalSession? = null,
     val terminalStatus: String = "Detached",
     val terminalConnected: Boolean = false,
+    val terminalFontFamily: String = PortalStore.DEFAULT_TERMINAL_FONT_FAMILY,
+    val terminalFontSize: Float = PortalStore.DEFAULT_TERMINAL_FONT_SIZE,
     val vaultSecretStored: Boolean = false,
     val vaultSecretInput: String = "",
     val vaultEnrollmentId: String? = null,
@@ -673,9 +716,8 @@ enum class PortalTab {
     Setup,
     Hosts,
     Sessions,
-    Sync,
-    Vault,
     Terminal,
+    Settings,
 }
 
 @Composable
@@ -696,22 +738,25 @@ private fun PortalTheme(content: @Composable () -> Unit) {
 @Composable
 fun PortalApp(viewModel: PortalViewModel) {
     val state by viewModel.state.collectAsState()
+    val terminalMode = state.selected == PortalTab.Terminal
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Portal") },
-                actions = {
-                    IconButton(onClick = viewModel::refreshAll, enabled = state.signedInUser != null && !state.loading) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
-                    }
-                    IconButton(onClick = viewModel::signOut, enabled = state.signedInUser != null) {
-                        Icon(Icons.Filled.Logout, contentDescription = "Sign out")
-                    }
-                },
-            )
+            if (!terminalMode) {
+                TopAppBar(
+                    title = { Text("Portal") },
+                    actions = {
+                        IconButton(onClick = viewModel::refreshAll, enabled = state.signedInUser != null && !state.loading) {
+                            Icon(Icons.Filled.Refresh, contentDescription = "Refresh")
+                        }
+                        IconButton(onClick = viewModel::signOut, enabled = state.signedInUser != null) {
+                            Icon(Icons.Filled.Logout, contentDescription = "Sign out")
+                        }
+                    },
+                )
+            }
         },
         bottomBar = {
-            if (state.signedInUser != null) {
+            if (state.signedInUser != null && !terminalMode) {
                 NavigationBar {
                     PortalTab.entries.filter { it != PortalTab.Setup }.forEach { tab ->
                         NavigationBarItem(
@@ -721,10 +766,10 @@ fun PortalApp(viewModel: PortalViewModel) {
                                 Icon(
                                     imageVector = when (tab) {
                                         PortalTab.Hosts -> Icons.Filled.PlayArrow
-                                        PortalTab.Sessions -> Icons.Filled.Terminal
-                                        PortalTab.Sync -> Icons.Filled.CloudSync
-                                        PortalTab.Vault -> Icons.Filled.Key
-                                        else -> Icons.Filled.Settings
+                                        PortalTab.Sessions -> Icons.Filled.List
+                                        PortalTab.Terminal -> Icons.Filled.Terminal
+                                        PortalTab.Settings -> Icons.Filled.Settings
+                                        PortalTab.Setup -> Icons.Filled.Settings
                                     },
                                     contentDescription = tab.name,
                                 )
@@ -736,16 +781,23 @@ fun PortalApp(viewModel: PortalViewModel) {
             }
         },
     ) { padding ->
-        Surface(Modifier.fillMaxSize().padding(padding)) {
-            Column(Modifier.fillMaxSize().padding(16.dp)) {
-                StatusLine(state)
-                when (state.selected) {
-                    PortalTab.Setup -> SetupScreen(state, viewModel)
-                    PortalTab.Hosts -> HostsScreen(state, viewModel)
-                    PortalTab.Sessions -> SessionsScreen(state, viewModel)
-                    PortalTab.Sync -> SyncScreen(state)
-                    PortalTab.Vault -> VaultScreen(state, viewModel)
-                    PortalTab.Terminal -> TerminalScreen(state, viewModel)
+        Surface(
+            Modifier
+                .fillMaxSize()
+                .then(if (terminalMode) Modifier else Modifier.padding(padding)),
+        ) {
+            if (terminalMode) {
+                TerminalScreen(state, viewModel)
+            } else {
+                Column(Modifier.fillMaxSize().padding(16.dp)) {
+                    StatusLine(state)
+                    when (state.selected) {
+                        PortalTab.Setup -> SetupScreen(state, viewModel)
+                        PortalTab.Hosts -> HostsScreen(state, viewModel)
+                        PortalTab.Sessions -> SessionsScreen(state, viewModel)
+                        PortalTab.Terminal -> TerminalScreen(state, viewModel)
+                        PortalTab.Settings -> SettingsScreen(state, viewModel)
+                    }
                 }
             }
         }
@@ -838,6 +890,196 @@ private fun SessionsScreen(state: PortalUiState, viewModel: PortalViewModel) {
                         Spacer(Modifier.height(8.dp))
                         Text(session.preview.takeLast(500), fontFamily = FontFamily.Monospace)
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsScreen(state: PortalUiState, viewModel: PortalViewModel) {
+    val vault = state.sync?.vault ?: HubVaultConfig()
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) viewModel.importVaultPrivateKey(uri)
+    }
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Terminal", style = MaterialTheme.typography.titleMedium)
+                    Text("Font", style = MaterialTheme.typography.labelLarge)
+                    TerminalFont.entries.forEach { option ->
+                        OutlinedButton(
+                            onClick = { viewModel.updateTerminalFontFamily(option.name) },
+                            enabled = state.terminalFontFamily != option.name,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(if (state.terminalFontFamily == option.name) "${option.displayName} (selected)" else option.displayName)
+                        }
+                    }
+                    Text("Font size: ${state.terminalFontSize.toInt()}sp", style = MaterialTheme.typography.labelLarge)
+                    Slider(
+                        value = state.terminalFontSize,
+                        onValueChange = viewModel::updateTerminalFontSize,
+                        valueRange = 6f..22f,
+                        steps = 15,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Sync", style = MaterialTheme.typography.titleMedium)
+                    SyncScreen(state)
+                }
+            }
+        }
+
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Vault", style = MaterialTheme.typography.titleMedium)
+                    SummaryRow("Encrypted keys", vault.keys.size.toString())
+                    SummaryRow("Encrypted secrets", vault.secrets.size.toString())
+                    SummaryRow("Vault unlock key", if (state.vaultSecretStored) "Stored on device" else "Not stored")
+                    state.vaultEnrollmentId?.let {
+                        SummaryRow("Unlock request", state.vaultEnrollmentStatus ?: "Pending approval")
+                    }
+                    state.vaultActionMessage?.let {
+                        Text(it, color = MaterialTheme.colorScheme.secondary)
+                    }
+                    if (!state.vaultSecretStored && !vault.hasItems) {
+                        OutlinedTextField(
+                            value = state.vaultSecretInput,
+                            onValueChange = viewModel::updateVaultSecretInput,
+                            label = { Text("Existing vault unlock key") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (state.vaultSecretStored) {
+                            OutlinedButton(
+                                onClick = viewModel::copyVaultSecret,
+                                enabled = !state.loading,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Copy secret")
+                            }
+                            OutlinedButton(
+                                onClick = viewModel::forgetVaultSecret,
+                                enabled = !state.loading,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Forget secret")
+                            }
+                        } else if (vault.hasItems) {
+                            Button(
+                                onClick = viewModel::requestVaultUnlock,
+                                enabled = !state.loading && state.vaultEnrollmentId == null,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(Icons.Filled.Key, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Request access")
+                            }
+                            OutlinedButton(
+                                onClick = viewModel::checkVaultUnlock,
+                                enabled = !state.loading && state.vaultEnrollmentId != null,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(Icons.Filled.Refresh, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Check approval")
+                            }
+                            if (state.vaultEnrollmentId != null) {
+                                TextButton(onClick = viewModel::resetVaultUnlockRequest, enabled = !state.loading) {
+                                    Text("Reset request")
+                                }
+                            }
+                        } else {
+                            Button(
+                                onClick = viewModel::saveVaultSecret,
+                                enabled = state.vaultSecretInput.isNotBlank() && !state.loading,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(Icons.Filled.Save, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Store")
+                            }
+                            OutlinedButton(
+                                onClick = viewModel::createVaultSecret,
+                                enabled = !vault.hasItems && !state.loading,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Create")
+                            }
+                        }
+                    }
+                    Button(onClick = viewModel::openAddVaultKey, enabled = !state.loading, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Filled.Key, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Add key")
+                    }
+                }
+            }
+        }
+
+        if (state.showAddVaultKey) {
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Add Vault Key", style = MaterialTheme.typography.titleMedium)
+                        OutlinedTextField(
+                            value = state.newVaultKeyName,
+                            onValueChange = viewModel::updateNewVaultKeyName,
+                            label = { Text("Name") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedTextField(
+                            value = state.newVaultPrivateKey,
+                            onValueChange = viewModel::updateNewVaultPrivateKey,
+                            label = { Text("Private key") },
+                            minLines = 6,
+                            maxLines = 10,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = { importLauncher.launch("*/*") }, enabled = !state.loading) {
+                                Icon(Icons.Filled.UploadFile, contentDescription = null)
+                                Text("Import")
+                            }
+                            Button(onClick = viewModel::addVaultKey, enabled = !state.loading) {
+                                Icon(Icons.Filled.Save, contentDescription = null)
+                                Text("Save")
+                            }
+                            TextButton(onClick = viewModel::cancelAddVaultKey) {
+                                Text("Cancel")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (vault.keys.isEmpty() && vault.secrets.isEmpty()) {
+            item { EmptyText("No vault items. Add an SSH private key to store it as a Portal-encrypted vault blob.") }
+        }
+
+        items(vault.keys, key = { it.id }) { key ->
+            VaultKeyCard(key, state, viewModel)
+        }
+
+        items(vault.secrets, key = { it.id }) { secret ->
+            Card(colors = CardDefaults.cardColors(containerColor = Color.White), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(secret.name, style = MaterialTheme.typography.titleMedium)
+                    Text("Secret: ${secret.kind}", color = MaterialTheme.colorScheme.secondary)
+                    Text("Updated ${secret.updatedAt}", color = MaterialTheme.colorScheme.secondary)
                 }
             }
         }
@@ -1029,42 +1271,137 @@ private fun VaultKeyCard(key: VaultKey, state: PortalUiState, viewModel: PortalV
 
 @Composable
 private fun TerminalScreen(state: PortalUiState, viewModel: PortalViewModel) {
-    Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Column {
-                Text(state.terminalTitle, style = MaterialTheme.typography.titleMedium)
-                Text(state.terminalStatus, color = MaterialTheme.colorScheme.secondary)
-            }
-            TextButton(onClick = viewModel::detachTerminal, enabled = state.terminalConnected) {
-                Text("Detach")
-            }
+    val session = state.terminalSession
+    val focusRequester = remember { FocusRequester() }
+    val terminalTypeface = rememberTerminalTypefaceFromStoredValue(state.terminalFontFamily)
+
+    LaunchedEffect(session) {
+        if (session != null) {
+            focusRequester.requestFocus()
         }
-        Box(
+    }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color(0xFF050607)),
+    ) {
+        if (session == null) {
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(state.terminalStatus, color = Color(0xFFE6EDF3))
+            }
+            return@Box
+        }
+
+        Terminal(
+            terminalEmulator = session.emulator,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = TERMINAL_KEYBOARD_HEIGHT_DP.dp),
+            typeface = terminalTypeface,
+            initialFontSize = state.terminalFontSize.sp,
+            keyboardEnabled = true,
+            showSoftKeyboard = true,
+            focusRequester = focusRequester,
+            modifierManager = session.keyHandler,
+            onTerminalTap = {},
+            delKeyMode = DelKeyMode.Delete,
+        )
+
+        Row(
             Modifier
-                .weight(1f)
                 .fillMaxWidth()
-                .background(Color(0xFF0B1120))
-                .verticalScroll(rememberScrollState())
-                .padding(12.dp),
+                .background(Color(0xDD1F2937))
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = state.terminalText.ifBlank { "No terminal output yet." },
-                color = Color(0xFFE2E8F0),
-                fontFamily = FontFamily.Monospace,
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-                value = state.terminalInput,
-                onValueChange = viewModel::updateTerminalInput,
-                label = { Text("Input") },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-            )
-            Button(onClick = viewModel::sendTerminalInput, enabled = state.terminalConnected) {
-                Text("Send")
+            Column(Modifier.weight(1f)) {
+                Text(state.terminalTitle, color = Color.White, style = MaterialTheme.typography.labelLarge)
+                Text(state.terminalStatus, color = Color(0xFFCBD5E1), style = MaterialTheme.typography.labelSmall)
+            }
+            TextButton(onClick = viewModel::detachTerminal) {
+                Text("Detach", color = Color.White)
             }
         }
+
+        PortalTerminalKeyboard(
+            keyHandler = session.keyHandler,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .imePadding()
+                .navigationBarsPadding(),
+        )
+    }
+}
+
+@Composable
+private fun PortalTerminalKeyboard(
+    keyHandler: TerminalKeyListener,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier
+            .fillMaxWidth()
+            .height(TERMINAL_KEYBOARD_HEIGHT_DP.dp)
+            .background(Color(0xEE111827))
+            .horizontalScroll(rememberScrollState()),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PortalTerminalKey("CTRL") {
+            keyHandler.metaPress(TerminalKeyListener.CTRL_ON, true)
+        }
+        PortalTerminalKey("ESC") {
+            keyHandler.sendEscape()
+        }
+        PortalTerminalKey("TAB") {
+            keyHandler.sendTab()
+        }
+        PortalTerminalKey("↑") {
+            keyHandler.sendPressedKey(VTermKey.UP)
+        }
+        PortalTerminalKey("↓") {
+            keyHandler.sendPressedKey(VTermKey.DOWN)
+        }
+        PortalTerminalKey("←") {
+            keyHandler.sendPressedKey(VTermKey.LEFT)
+        }
+        PortalTerminalKey("→") {
+            keyHandler.sendPressedKey(VTermKey.RIGHT)
+        }
+        PortalTerminalKey("PgUp") {
+            keyHandler.sendPressedKey(VTermKey.PAGEUP)
+        }
+        PortalTerminalKey("PgDn") {
+            keyHandler.sendPressedKey(VTermKey.PAGEDOWN)
+        }
+        PortalTerminalKey("Home") {
+            keyHandler.sendPressedKey(VTermKey.HOME)
+        }
+        PortalTerminalKey("End") {
+            keyHandler.sendPressedKey(VTermKey.END)
+        }
+    }
+}
+
+@Composable
+private fun PortalTerminalKey(label: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .height(TERMINAL_KEYBOARD_HEIGHT_DP.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, color = Color.White, style = MaterialTheme.typography.labelMedium)
     }
 }
 

@@ -27,6 +27,22 @@ class PortalStore(context: Context) {
             prefs.edit().putString("hub_url", value.trim().trimEnd('/')).apply()
         }
 
+    var terminalFontFamily: String
+        get() {
+            val stored = prefs.getString("terminal_font_family", DEFAULT_TERMINAL_FONT_FAMILY)
+                ?: DEFAULT_TERMINAL_FONT_FAMILY
+            return if (stored == "monospace") DEFAULT_TERMINAL_FONT_FAMILY else stored
+        }
+        set(value) {
+            prefs.edit().putString("terminal_font_family", value).apply()
+        }
+
+    var terminalFontSize: Float
+        get() = prefs.getFloat("terminal_font_size", DEFAULT_TERMINAL_FONT_SIZE)
+        set(value) {
+            prefs.edit().putFloat("terminal_font_size", value.coerceIn(6f, 30f)).apply()
+        }
+
     fun loadTokens(): HubTokens? {
         val encrypted = prefs.getString("tokens", null) ?: return null
         val raw = decrypt(encrypted)
@@ -186,5 +202,7 @@ class PortalStore(context: Context) {
     companion object {
         private const val KEY_ALIAS = "portal_hub_tokens"
         private const val VAULT_ENROLLMENT_KEY_ALIAS = "portal_vault_enrollment_rsa"
+        const val DEFAULT_TERMINAL_FONT_FAMILY = "SYSTEM_DEFAULT"
+        const val DEFAULT_TERMINAL_FONT_SIZE = 10f
     }
 }

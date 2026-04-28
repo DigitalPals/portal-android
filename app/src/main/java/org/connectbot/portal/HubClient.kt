@@ -362,6 +362,10 @@ interface TerminalListener {
 
     fun onOutput(text: String)
 
+    fun onOutput(bytes: ByteArray) {
+        onOutput(bytes.toString(Charsets.UTF_8))
+    }
+
     fun onError(message: String)
 
     fun onClosed()
@@ -394,12 +398,13 @@ class HubTerminal(
         when (json?.optString("type")) {
             "started" -> terminalListener.onStarted()
             "error" -> terminalListener.onError(json.optString("message", text))
+            "closed", "exit", "exited" -> terminalListener.onClosed()
             else -> terminalListener.onOutput(text)
         }
     }
 
     override fun onMessage(webSocket: WebSocket, bytes: ByteString) {
-        terminalListener.onOutput(bytes.toByteArray().toString(Charsets.UTF_8))
+        terminalListener.onOutput(bytes.toByteArray())
     }
 
     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
@@ -413,6 +418,10 @@ class HubTerminal(
 
     fun send(text: String) {
         webSocket?.send(ByteString.of(*text.toByteArray(Charsets.UTF_8)))
+    }
+
+    fun send(bytes: ByteArray) {
+        webSocket?.send(ByteString.of(*bytes))
     }
 
     fun resize(cols: Int, rows: Int) {

@@ -55,7 +55,7 @@ data class HubSession(
 data class HubServiceState(
     val revision: String,
     val payload: JSONObject,
-    val tombstones: Any,
+    val tombstones: List<String>,
 )
 
 data class HubSyncState(

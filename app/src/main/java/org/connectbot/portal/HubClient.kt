@@ -137,7 +137,7 @@ class HubClient(
             HubServiceState(
                 revision = raw.optString("revision", "0"),
                 payload = raw.optJSONObject("payload") ?: JSONObject(),
-                tombstones = raw.opt("tombstones") ?: emptyList<String>(),
+                tombstones = raw.optJSONArray("tombstones").toStringList(),
             )
         }
         return HubSyncState(services)
@@ -172,7 +172,7 @@ class HubClient(
             HubServiceState(
                 revision = raw.optString("revision", "0"),
                 payload = raw.optJSONObject("payload") ?: JSONObject(),
-                tombstones = raw.opt("tombstones") ?: emptyList<String>(),
+                tombstones = raw.optJSONArray("tombstones").toStringList(),
             )
         }
         return HubSyncState(services)

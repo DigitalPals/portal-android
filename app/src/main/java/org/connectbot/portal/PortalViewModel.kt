@@ -13,11 +13,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 
 class PortalViewModel(application: android.app.Application) : AndroidViewModel(application) {
     private val store = PortalStore(application)
     private val client = HubClient(store)
+    private val repository = PortalHubRepository(store, client)
     private var pendingPkce: HubClient.Pkce? = null
     private var terminal: HubTerminal? = null
     private var terminalDetachRequested = false
@@ -52,13 +52,7 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     fun checkHub() {
         viewModelScope.launch {
             runBusy {
-                val hubUrl = normalizedHubUrl()
-                val info = client.fetchInfo(hubUrl)
-                require(info.apiVersion >= 2 && info.webProxy && info.syncV2 && info.keyVault) {
-                    "Portal Hub ${info.version} does not advertise the required Android capabilities"
-                }
-                client.requireAndroidOAuthSupport(hubUrl, client.newPkce())
-                store.hubUrl = hubUrl
+                val info = repository.checkHub(state.value.hubUrl)
                 _state.update { it.copy(hubInfo = info, error = null) }
             }
         }
@@ -67,15 +61,10 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     fun startSignIn() {
         viewModelScope.launch {
             runBusy {
-                val hubUrl = normalizedHubUrl()
-                val info = client.fetchInfo(hubUrl)
-                require(info.apiVersion >= 2) { "Portal Hub API version ${info.apiVersion} is too old" }
-                val pkce = client.newPkce()
-                client.requireAndroidOAuthSupport(hubUrl, pkce)
-                store.hubUrl = hubUrl
-                pendingPkce = pkce
-                _state.update { it.copy(hubInfo = info, error = null) }
-                _authRequests.emit(client.authorizeUrl(hubUrl, pkce))
+                val request = repository.startSignIn(state.value.hubUrl)
+                pendingPkce = request.pkce
+                _state.update { it.copy(hubInfo = request.hubInfo, error = null) }
+                _authRequests.emit(request.authorizeUrl)
             }
         }
     }
@@ -90,7 +79,7 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         }
         viewModelScope.launch {
             runBusy {
-                client.exchangeCode(store.hubUrl, code, pkce.verifier)
+                repository.completeSignIn(code, pkce.verifier)
                 pendingPkce = null
                 refreshAll()
             }
@@ -100,18 +89,16 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     fun refreshAll() {
         viewModelScope.launch {
             runBusy {
-                val username = client.me()
-                val sync = client.syncState()
-                val sessions = client.listSessions()
+                val snapshot = repository.refreshAll()
                 _state.update {
                     it.copy(
-                        signedInUser = username,
-                        sync = sync,
-                        hosts = sync.hosts,
-                        sessions = sessions,
+                        signedInUser = snapshot.username,
+                        sync = snapshot.sync,
+                        hosts = snapshot.sync.hosts,
+                        sessions = snapshot.sessions,
                         selected = if (it.selected == PortalTab.Setup) PortalTab.Hosts else it.selected,
-                        vaultSecretStored = store.loadVaultSecret() != null,
-                        vaultEnrollmentId = store.loadVaultEnrollmentId(),
+                        vaultSecretStored = snapshot.vaultSecretStored,
+                        vaultEnrollmentId = snapshot.vaultEnrollmentId,
                         error = null,
                     )
                 }
@@ -145,13 +132,13 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     fun signOut() {
         terminal?.close()
         terminal = null
-        store.clearTokens()
-        store.clearVaultSecret()
+        repository.clearTokens()
+        repository.clearVaultSecret()
         _state.update {
             PortalUiState(
                 hubUrl = store.hubUrl.ifBlank { it.hubUrl },
-                vaultSecretStored = store.loadVaultSecret() != null,
-                vaultEnrollmentId = store.loadVaultEnrollmentId(),
+                vaultSecretStored = repository.loadVaultSecret() != null,
+                vaultEnrollmentId = repository.loadVaultEnrollmentId(),
                 terminalFontFamily = store.terminalFontFamily,
                 terminalFontSize = store.terminalFontSize,
             )
@@ -171,7 +158,7 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         }
         val vault = state.value.sync?.vault
         val key = vault?.findKey(vaultKeyId)
-        val secret = store.loadVaultSecret()
+        val secret = repository.loadVaultSecret()
         if (vault == null || key == null) {
             _state.update { it.copy(error = "Vault key $vaultKeyId was not found in the synced vault") }
             return
@@ -198,7 +185,7 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         try {
             val secret = state.value.vaultSecretInput.trim()
             validateVaultSecret(secret, state.value.sync?.vault ?: HubVaultConfig())
-            store.saveVaultSecret(secret)
+            repository.saveVaultSecret(secret)
             _state.update { it.copy(vaultSecretStored = true, vaultSecretInput = "", error = null) }
         } catch (error: Throwable) {
             _state.update { it.copy(error = error.message ?: error.toString()) }
@@ -208,7 +195,7 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     fun createVaultSecret() {
         try {
             val vault = state.value.sync?.vault ?: HubVaultConfig()
-            val secret = store.loadOrCreateVaultSecret(vault)
+            val secret = repository.loadOrCreateVaultSecret(vault)
             _state.update {
                 it.copy(
                     vaultSecretStored = true,
@@ -225,13 +212,13 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     fun requestVaultUnlock() {
         viewModelScope.launch {
             runBusy {
-                val publicKey = store.vaultEnrollmentPublicKeyBase64()
+                val publicKey = repository.vaultEnrollmentPublicKeyBase64()
                 val deviceName = listOf(Build.MANUFACTURER, Build.MODEL)
                     .filter { it.isNotBlank() }
                     .joinToString(" ")
                     .ifBlank { "Android device" }
-                val enrollment = client.createVaultEnrollment(deviceName, publicKey)
-                store.saveVaultEnrollmentId(enrollment.id)
+                val enrollment = repository.createVaultEnrollment(deviceName, publicKey)
+                repository.saveVaultEnrollmentId(enrollment.id)
                 _state.update {
                     it.copy(
                         vaultEnrollmentId = enrollment.id,
@@ -245,22 +232,22 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     }
 
     fun checkVaultUnlock() {
-        val id = store.loadVaultEnrollmentId()
+        val id = repository.loadVaultEnrollmentId()
         if (id.isNullOrBlank()) {
             _state.update { it.copy(error = "No vault access request is pending") }
             return
         }
         viewModelScope.launch {
             runBusy {
-                val enrollment = client.loadVaultEnrollment(id)
+                val enrollment = repository.loadVaultEnrollment(id)
                 handleVaultEnrollment(enrollment)
             }
         }
     }
 
     fun resetVaultUnlockRequest() {
-        store.clearVaultEnrollmentId()
-        store.clearVaultEnrollmentKey()
+        repository.clearVaultEnrollmentId()
+        repository.clearVaultEnrollmentKey()
         _state.update {
             it.copy(
                 vaultEnrollmentId = null,
@@ -299,10 +286,10 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         val encrypted = enrollment.encryptedSecretBase64
             ?: throw IllegalStateException("Approved vault request did not include an encrypted unlock key")
         val secret = try {
-            store.decryptVaultEnrollmentSecret(encrypted)
+            repository.decryptVaultEnrollmentSecret(encrypted)
         } catch (error: Throwable) {
-            store.clearVaultEnrollmentId()
-            store.clearVaultEnrollmentKey()
+            repository.clearVaultEnrollmentId()
+            repository.clearVaultEnrollmentKey()
             _state.update {
                 it.copy(
                     vaultEnrollmentId = null,
@@ -316,8 +303,8 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
             )
         }
         validateVaultSecret(secret, state.value.sync?.vault ?: HubVaultConfig())
-        store.saveVaultSecret(secret)
-        store.clearVaultEnrollmentId()
+        repository.saveVaultSecret(secret)
+        repository.clearVaultEnrollmentId()
         _state.update {
             it.copy(
                 vaultSecretStored = true,
@@ -386,7 +373,7 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         viewModelScope.launch {
             runBusy {
                 val vault = state.value.sync?.vault ?: HubVaultConfig()
-                val secret = store.loadOrCreateVaultSecret(vault)
+                val secret = repository.loadOrCreateVaultSecret(vault)
                 val key = PortalVaultCrypto.encryptPrivateKey(name, privateKey.ensureTrailingNewline(), secret)
                 updateVault(vault.upsertKey(key), "Added vault key")
                 _state.update {
@@ -516,7 +503,7 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     private fun refreshSessions() {
         viewModelScope.launch {
             try {
-                val sessions = client.listSessions()
+                val sessions = repository.listSessions()
                 _state.update { it.copy(sessions = sessions, error = null) }
             } catch (error: Throwable) {
                 _state.update { it.copy(error = error.message ?: error.toString()) }
@@ -525,28 +512,19 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     }
 
     private fun loadCachedSync() {
-        val raw = store.loadSyncSnapshot() ?: return
-        val json = JSONObject(raw)
-        val services = json.objectMap("services").mapValues { (_, service) ->
-            HubServiceState(
-                revision = service.optString("revision", "0"),
-                payload = service.optJSONObject("payload") ?: JSONObject(),
-                tombstones = service.opt("tombstones") ?: emptyList<String>(),
-            )
-        }
-        val sync = HubSyncState(services)
+        val sync = repository.loadCachedSync() ?: return
         _state.update {
             it.copy(
                 sync = sync,
                 hosts = sync.hosts,
-                vaultSecretStored = store.loadVaultSecret() != null,
-                vaultEnrollmentId = store.loadVaultEnrollmentId(),
+                vaultSecretStored = repository.loadVaultSecret() != null,
+                vaultEnrollmentId = repository.loadVaultEnrollmentId(),
             )
         }
     }
 
     private suspend fun updateVault(vault: HubVaultConfig, message: String) {
-        val sync = client.putVault(vault)
+        val sync = repository.putVault(vault)
         _state.update {
             it.copy(
                 sync = sync,
@@ -577,17 +555,6 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
             _state.update { it.copy(error = error.message ?: error.toString()) }
         } finally {
             _state.update { it.copy(loading = false) }
-        }
-    }
-
-    private fun normalizedHubUrl(): String {
-        val raw = state.value.hubUrl.trim().trimEnd('/')
-        require(raw.isNotBlank()) { "Portal Hub URL is required" }
-        return when {
-            raw.startsWith("http://") || raw.startsWith("https://") -> raw
-            raw == "localhost" || raw.startsWith("127.") -> "http://$raw:8080"
-            ":" in raw -> "https://$raw"
-            else -> "https://$raw:8080"
         }
     }
 }

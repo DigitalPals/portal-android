@@ -160,11 +160,11 @@ private fun SetupScreen(state: PortalUiState, viewModel: PortalViewModel) {
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = viewModel::checkHub, enabled = !state.loading) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = viewModel::checkHub, enabled = !state.loading, modifier = Modifier.weight(1f)) {
                 Text("Check")
             }
-            Button(onClick = viewModel::startSignIn, enabled = !state.loading) {
+            Button(onClick = viewModel::startSignIn, enabled = !state.loading, modifier = Modifier.weight(1f)) {
                 Text("Sign in")
             }
         }
@@ -236,7 +236,10 @@ private fun SessionsScreen(state: PortalUiState, viewModel: PortalViewModel) {
                         }
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(hostName, style = MaterialTheme.typography.titleMedium)
-                            SessionBadge("${session.targetUser}@${session.targetHost}:${session.targetPort}")
+                            SessionBadge(
+                                text = "${session.targetUser}@${session.targetHost}:${session.targetPort}",
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                         }
                     }
 
@@ -257,4 +260,3 @@ private fun SessionsScreen(state: PortalUiState, viewModel: PortalViewModel) {
         }
     }
 }
-

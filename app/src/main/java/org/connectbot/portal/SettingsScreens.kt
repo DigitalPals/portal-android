@@ -135,8 +135,12 @@ private fun SettingsSectionRow(
                 }
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, style = MaterialTheme.typography.titleMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     SessionBadge(badge)
                 }
                 Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
@@ -197,7 +201,7 @@ private fun TerminalSettingsScreen(state: PortalUiState, viewModel: PortalViewMo
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Column {
+                    Column(Modifier.weight(1f)) {
                         Text(option.displayName, style = MaterialTheme.typography.titleSmall)
                         Text(
                             if (option == TerminalFont.SYSTEM_DEFAULT) "Android system monospace" else "Downloadable terminal font",
@@ -336,16 +340,26 @@ private fun VaultSettingsScreen(state: PortalUiState, viewModel: PortalViewModel
                             maxLines = 10,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick = { importLauncher.launch("*/*") }, enabled = !state.loading) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { importLauncher.launch("*/*") },
+                                enabled = !state.loading,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
                                 Icon(Icons.Filled.UploadFile, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
                                 Text("Import")
                             }
-                            Button(onClick = viewModel::addVaultKey, enabled = !state.loading) {
+                            Button(
+                                onClick = viewModel::addVaultKey,
+                                enabled = !state.loading,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
                                 Icon(Icons.Filled.Save, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
                                 Text("Save")
                             }
-                            TextButton(onClick = viewModel::cancelAddVaultKey) {
+                            TextButton(onClick = viewModel::cancelAddVaultKey, modifier = Modifier.fillMaxWidth()) {
                                 Text("Cancel")
                             }
                         }
@@ -414,4 +428,3 @@ private fun SyncScreen(state: PortalUiState) {
         Text("Unknown fields from Portal desktop payloads are preserved in the cached sync snapshot.")
     }
 }
-

@@ -20,11 +20,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       has-sonar-token: ${{ steps.sonar-token.outputs.defined }}
+      has-signer-webhook: ${{ steps.signer-webhook.outputs.defined }}
     steps:
       - id: sonar-token
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         if: "${{ env.SONAR_TOKEN != '' }}"
+        run: echo "defined=true" >> $GITHUB_OUTPUT
+      - id: signer-webhook
+        env:
+          SIGNER_WEBHOOK_URL: ${{ secrets.SIGNER_WEBHOOK_URL }}
+        if: "${{ env.SIGNER_WEBHOOK_URL != '' }}"
         run: echo "defined=true" >> $GITHUB_OUTPUT
 
   build:
@@ -130,7 +136,7 @@ jobs:
             -Dsonar.projectVersion=${{ github.sha }}
 
       - name: Prepare release
-        if: ${{ inputs.is_push }}
+        if: ${{ inputs.is_push && startsWith(github.ref, 'refs/tags/v') }}
         run: |
           if git describe --exact-match; then \
             TAGGED=yes
@@ -146,33 +152,33 @@ jobs:
             echo "${GITHUB_TAG}" > tag.txt
             echo "${GITHUB_TAG}: ${GITHUB_TITLE}" > release-title.txt
           fi
-          cp ./app/build/outputs/apk/oss/release/app-oss-release-unsigned.apk ConnectBot-${GITHUB_TAG}-oss-unsigned.apk
-          cp ./app/build/outputs/apk/google/release/app-google-release-unsigned.apk ConnectBot-${GITHUB_TAG}-google-unsigned.apk
-          cp ./app/build/outputs/bundle/googleRelease/app-google-release.aab ConnectBot-${GITHUB_TAG}-google-unsigned.aab
-          cp ./app/build/outputs/bundle/ossRelease/app-oss-release.aab ConnectBot-${GITHUB_TAG}-oss-unsigned.aab
-          cp ./app/build/outputs/native-debug-symbols/googleRelease/native-debug-symbols.zip ConnectBot-${GITHUB_TAG}-google.native-debug-symbols.zip
-          cp ./app/build/outputs/native-debug-symbols/ossRelease/native-debug-symbols.zip ConnectBot-${GITHUB_TAG}-oss.native-debug-symbols.zip
-          cp ./app/build/outputs/mapping/googleRelease/mapping.txt ConnectBot-${GITHUB_TAG}-google.mapping.txt
-          cp ./app/build/outputs/mapping/ossRelease/mapping.txt ConnectBot-${GITHUB_TAG}-oss.mapping.txt
+          cp ./app/build/outputs/apk/oss/release/app-oss-release-unsigned.apk Portal-Android-${GITHUB_TAG}-oss-unsigned.apk
+          cp ./app/build/outputs/apk/google/release/app-google-release-unsigned.apk Portal-Android-${GITHUB_TAG}-google-unsigned.apk
+          cp ./app/build/outputs/bundle/googleRelease/app-google-release.aab Portal-Android-${GITHUB_TAG}-google-unsigned.aab
+          cp ./app/build/outputs/bundle/ossRelease/app-oss-release.aab Portal-Android-${GITHUB_TAG}-oss-unsigned.aab
+          cp ./app/build/outputs/native-debug-symbols/googleRelease/native-debug-symbols.zip Portal-Android-${GITHUB_TAG}-google.native-debug-symbols.zip
+          cp ./app/build/outputs/native-debug-symbols/ossRelease/native-debug-symbols.zip Portal-Android-${GITHUB_TAG}-oss.native-debug-symbols.zip
+          cp ./app/build/outputs/mapping/googleRelease/mapping.txt Portal-Android-${GITHUB_TAG}-google.mapping.txt
+          cp ./app/build/outputs/mapping/ossRelease/mapping.txt Portal-Android-${GITHUB_TAG}-oss.mapping.txt
           zstd *.mapping.txt
 
       - name: Store artifacts for upload
-        if: ${{ inputs.is_push }}
+        if: ${{ inputs.is_push && startsWith(github.ref, 'refs/tags/v') }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: apk
           path: |
             release-title.txt
             tag.txt
-            ConnectBot-*-unsigned.apk
-            ConnectBot-*-unsigned.aab
-            ConnectBot-*.native-debug-symbols.zip
-            ConnectBot-*.mapping.txt.zst
+            Portal-Android-*-unsigned.apk
+            Portal-Android-*-unsigned.aab
+            Portal-Android-*.native-debug-symbols.zip
+            Portal-Android-*.mapping.txt.zst
 
   upload:
     name: Upload to GitHub releases
     needs: build
-    if: ${{ inputs.is_push && (github.repository == 'connectbot/connectbot') && ((github.ref == 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')) }}
+    if: ${{ inputs.is_push && (github.repository == 'DigitalPals/portal-android') && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -192,21 +198,21 @@ jobs:
       - name: Upload release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
         with:
-          body: "Untested build"
-          draft: true
+          body: "Automated Portal Android build."
+          draft: false
           tag_name: ${{ steps.name.outputs.GITHUB_TAG }}
           name: ${{ steps.name.outputs.RELEASE_TITLE }}
           generate_release_notes: true
           files: |
-            ConnectBot-*-unsigned.apk
-            ConnectBot-*-unsigned.aab
-            ConnectBot-*.native-debug-symbols.zip
-            ConnectBot-*.mapping.txt.zst
+            Portal-Android-*-unsigned.apk
+            Portal-Android-*-unsigned.aab
+            Portal-Android-*.native-debug-symbols.zip
+            Portal-Android-*.mapping.txt.zst
 
   signing:
     name: Trigger remote signing
-    needs: upload
-    if: ${{ inputs.is_push && (github.repository == 'connectbot/connectbot') && ((github.ref == 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v')) }}
+    needs: [check-inputs, upload]
+    if: ${{ inputs.is_push && (github.repository == 'DigitalPals/portal-android') && startsWith(github.ref, 'refs/tags/v') && needs.check-inputs.outputs.has-signer-webhook == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

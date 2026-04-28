@@ -7,13 +7,15 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -24,11 +26,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.connectbot.service.TerminalKeyListener
@@ -38,11 +44,13 @@ import org.connectbot.terminal.VTermKey
 import org.connectbot.ui.components.TERMINAL_KEYBOARD_HEIGHT_DP
 import org.connectbot.util.rememberTerminalTypefaceFromStoredValue
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TerminalScreen(state: PortalUiState, viewModel: PortalViewModel) {
     val session = state.terminalSession
     val focusRequester = remember { FocusRequester() }
     val terminalTypeface = rememberTerminalTypefaceFromStoredValue(state.terminalFontFamily)
+    var showSoftwareKeyboard by remember { mutableStateOf(true) }
 
     BackHandler {
         viewModel.detachTerminal()
@@ -50,7 +58,22 @@ fun TerminalScreen(state: PortalUiState, viewModel: PortalViewModel) {
 
     LaunchedEffect(session) {
         if (session != null) {
+            showSoftwareKeyboard = true
             focusRequester.requestFocus()
+        }
+    }
+
+    val density = LocalDensity.current
+    val imeHeight = with(density) { WindowInsets.ime.getBottom(density).toDp() }
+    val systemImeVisible = imeHeight > 0.dp
+    var hasImeBeenVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(systemImeVisible) {
+        if (systemImeVisible) {
+            hasImeBeenVisible = true
+        }
+        if (hasImeBeenVisible && !systemImeVisible && showSoftwareKeyboard) {
+            showSoftwareKeyboard = false
         }
     }
 
@@ -72,29 +95,40 @@ fun TerminalScreen(state: PortalUiState, viewModel: PortalViewModel) {
             return@Box
         }
 
-        Terminal(
-            terminalEmulator = session.emulator,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
-                .padding(bottom = TERMINAL_KEYBOARD_HEIGHT_DP.dp),
-            typeface = terminalTypeface,
-            initialFontSize = state.terminalFontSize.sp,
-            keyboardEnabled = true,
-            showSoftKeyboard = true,
-            focusRequester = focusRequester,
-            modifierManager = session.keyHandler,
-            onTerminalTap = {},
-            delKeyMode = DelKeyMode.Delete,
-        )
-
-        PortalTerminalKeyboard(
-            keyHandler = session.keyHandler,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .imePadding()
+                .windowInsetsPadding(WindowInsets.imeAnimationTarget)
                 .navigationBarsPadding(),
-        )
+        ) {
+            Terminal(
+                terminalEmulator = session.emulator,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = TERMINAL_KEYBOARD_HEIGHT_DP.dp),
+                typeface = terminalTypeface,
+                initialFontSize = state.terminalFontSize.sp,
+                keyboardEnabled = true,
+                showSoftKeyboard = showSoftwareKeyboard,
+                focusRequester = focusRequester,
+                modifierManager = session.keyHandler,
+                onTerminalTap = {
+                    showSoftwareKeyboard = true
+                },
+                onImeVisibilityChanged = { visible ->
+                    if (!visible && showSoftwareKeyboard) {
+                        showSoftwareKeyboard = false
+                    }
+                },
+                delKeyMode = DelKeyMode.Delete,
+            )
+
+            PortalTerminalKeyboard(
+                keyHandler = session.keyHandler,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
     }
 }
 

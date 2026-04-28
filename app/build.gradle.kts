@@ -25,8 +25,8 @@ android {
 
     defaultConfig {
         applicationId = "com.digitalpals.portal.android"
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
 
         minSdk =
             libs.versions.minSdk

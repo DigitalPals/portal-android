@@ -178,11 +178,7 @@ class HubClient(
         publicKeyDerBase64: String,
         pairingId: String?,
     ): VaultEnrollment {
-        val body = JSONObject()
-            .put("device_name", deviceName)
-            .put("public_key_algorithm", "RSA-OAEP-SHA256")
-            .put("public_key_der_base64", publicKeyDerBase64)
-            .also { if (!pairingId.isNullOrBlank()) it.put("pairing_id", pairingId) }
+        val body = vaultEnrollmentCreateJson(deviceName, publicKeyDerBase64, pairingId)
             .toString()
             .toRequestBody("application/json; charset=utf-8".toMediaType())
         val json = authorizedJson { token ->
@@ -222,11 +218,7 @@ class HubClient(
             it.throwIfFailed()
             it.body?.charStream()?.buffered()?.useLines { lines ->
                 lines.forEach { line ->
-                    if (line.startsWith("data:")) {
-                        val payload = JSONObject(line.removePrefix("data:").trim())
-                        val enrollment = payload.optJSONObject("enrollment") ?: return@forEach
-                        onEnrollment(VaultEnrollment.fromJson(enrollment))
-                    }
+                    vaultEnrollmentFromSseLine(line)?.let(onEnrollment)
                 }
             }
         }
@@ -368,6 +360,23 @@ class HubClient(
             hubUrl.startsWith("https://") -> "wss://${hubUrl.removePrefix("https://").trimEnd('/')}/api/sessions/terminal"
             hubUrl.startsWith("http://") -> "ws://${hubUrl.removePrefix("http://").trimEnd('/')}/api/sessions/terminal"
             else -> throw IllegalArgumentException("Portal Hub URL must start with http:// or https://")
+        }
+
+        fun vaultEnrollmentCreateJson(
+            deviceName: String,
+            publicKeyDerBase64: String,
+            pairingId: String?,
+        ): JSONObject = JSONObject()
+            .put("device_name", deviceName)
+            .put("public_key_algorithm", "RSA-OAEP-SHA256")
+            .put("public_key_der_base64", publicKeyDerBase64)
+            .also { if (!pairingId.isNullOrBlank()) it.put("pairing_id", pairingId) }
+
+        fun vaultEnrollmentFromSseLine(line: String): VaultEnrollment? {
+            if (!line.startsWith("data:")) return null
+            val payload = JSONObject(line.removePrefix("data:").trim())
+            val enrollment = payload.optJSONObject("enrollment") ?: return null
+            return VaultEnrollment.fromJson(enrollment)
         }
     }
 }

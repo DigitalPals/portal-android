@@ -45,11 +45,12 @@ class PortalHubRepositoryTest {
     @Test
     fun parsesAndroidPairingHubUrl() {
         val uri = Uri.parse(
-            "com.digitalpals.portal.android:/pair?hub_url=https%3A%2F%2Fhub.example.com%3A8080",
+            "com.digitalpals.portal.android:/pair?hub_url=https%3A%2F%2Fhub.example.com%3A8080&pairing_id=pair-123",
         )
 
         assertThat(PortalAndroidPairing.hubUrlFrom(uri))
             .isEqualTo("https://hub.example.com:8080")
+        assertThat(PortalAndroidPairing.from(uri)?.pairingId).isEqualTo("pair-123")
     }
 
     @Test
@@ -57,6 +58,34 @@ class PortalHubRepositoryTest {
         val uri = Uri.parse("com.digitalpals.portal.android:/oauth2redirect?code=abc")
 
         assertThat(PortalAndroidPairing.hubUrlFrom(uri)).isNull()
+    }
+
+    @Test
+    fun vaultEnrollmentCreatePayloadIncludesPairingId() {
+        val payload = HubClient.vaultEnrollmentCreateJson(
+            deviceName = "Pixel",
+            publicKeyDerBase64 = "cHVibGlj",
+            pairingId = "pair-123",
+        )
+
+        assertThat(payload.getString("device_name")).isEqualTo("Pixel")
+        assertThat(payload.getString("public_key_algorithm")).isEqualTo("RSA-OAEP-SHA256")
+        assertThat(payload.getString("public_key_der_base64")).isEqualTo("cHVibGlj")
+        assertThat(payload.getString("pairing_id")).isEqualTo("pair-123")
+    }
+
+    @Test
+    fun parsesVaultEnrollmentEventLine() {
+        val enrollment = HubClient.vaultEnrollmentFromSseLine(
+            """
+            data: {"type":"vault_enrollment","enrollment":{"id":"00000000-0000-0000-0000-000000000001","device_name":"Pixel","status":"revoked","encrypted_secret_base64":null,"pairing_id":"pair-123","created_at":"2026-04-29T12:00:00Z","updated_at":"2026-04-29T12:05:00Z","approved_at":"2026-04-29T12:01:00Z","revoked_at":"2026-04-29T12:05:00Z"}}
+            """.trimIndent(),
+        )
+
+        assertThat(enrollment?.id).isEqualTo("00000000-0000-0000-0000-000000000001")
+        assertThat(enrollment?.status).isEqualTo("revoked")
+        assertThat(enrollment?.pairingId).isEqualTo("pair-123")
+        assertThat(enrollment?.revokedAt).isEqualTo("2026-04-29T12:05:00Z")
     }
 
     @Test

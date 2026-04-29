@@ -48,6 +48,7 @@ mockitoKotlin = "6.3.0"
 assertj = "3.27.7"
 robolectric = "4.16.1"
 kover = "0.9.8"
+jsonSchemaValidator = "1.5.9"
 
 errorproneCore = "2.49.0"
 media3CommonKtx = "1.10.0"
@@ -86,6 +87,7 @@ mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mockito-kotlin = { module = "org.mockito.kotlin:mockito-kotlin", version.ref = "mockitoKotlin" }
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+json-schema-validator = { module = "com.networknt:json-schema-validator", version.ref = "jsonSchemaValidator" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 conscrypt-openjdk-uber = { module = "org.conscrypt:conscrypt-openjdk-uber", version.ref = "conscryptOpenJdk" }
 

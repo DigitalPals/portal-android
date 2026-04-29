@@ -202,9 +202,11 @@ class PortalHubContractTest {
             .put("public_key_der_base64", "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A")
             .put("status", "approved")
             .put("encrypted_secret_base64", "c2VjcmV0")
+            .put("pairing_id", "00000000-0000-0000-0000-000000000010")
             .put("created_at", "2026-04-29T12:00:00Z")
             .put("updated_at", "2026-04-29T12:01:00Z")
             .put("approved_at", "2026-04-29T12:01:00Z")
+            .put("revoked_at", JSONObject.NULL)
 
         assertContract("vault-enrollment-response", instance)
         val enrollment = VaultEnrollment.fromJson(instance)
@@ -212,6 +214,7 @@ class PortalHubContractTest {
         assertThat(enrollment.id).isEqualTo("00000000-0000-0000-0000-000000000001")
         assertThat(enrollment.status).isEqualTo("approved")
         assertThat(enrollment.encryptedSecretBase64).isEqualTo("c2VjcmV0")
+        assertThat(enrollment.pairingId).isEqualTo("00000000-0000-0000-0000-000000000010")
     }
 
     private fun assertContract(schemaName: String, instance: JSONObject) {

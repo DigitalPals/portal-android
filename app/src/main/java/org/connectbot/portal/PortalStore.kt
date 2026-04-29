@@ -89,6 +89,17 @@ class PortalStore(context: Context) {
         prefs.edit().remove("vault_enrollment_id").apply()
     }
 
+    fun loadVaultDeviceEnrollmentId(): String? =
+        prefs.getString("vault_device_enrollment_id", null)
+
+    fun saveVaultDeviceEnrollmentId(id: String) {
+        prefs.edit().putString("vault_device_enrollment_id", id).apply()
+    }
+
+    fun clearVaultDeviceEnrollmentId() {
+        prefs.edit().remove("vault_device_enrollment_id").apply()
+    }
+
     fun clearVaultEnrollmentKey() {
         val keyStore = keyStore()
         if (keyStore.containsAlias(VAULT_ENROLLMENT_KEY_ALIAS)) {

@@ -173,11 +173,16 @@ class HubClient(
         return json.toHubSyncState()
     }
 
-    suspend fun createVaultEnrollment(deviceName: String, publicKeyDerBase64: String): VaultEnrollment {
+    suspend fun createVaultEnrollment(
+        deviceName: String,
+        publicKeyDerBase64: String,
+        pairingId: String?,
+    ): VaultEnrollment {
         val body = JSONObject()
             .put("device_name", deviceName)
             .put("public_key_algorithm", "RSA-OAEP-SHA256")
             .put("public_key_der_base64", publicKeyDerBase64)
+            .also { if (!pairingId.isNullOrBlank()) it.put("pairing_id", pairingId) }
             .toString()
             .toRequestBody("application/json; charset=utf-8".toMediaType())
         val json = authorizedJson { token ->
@@ -199,6 +204,32 @@ class HubClient(
                 .build()
         }
         return VaultEnrollment.fromJson(json)
+    }
+
+    suspend fun streamVaultEnrollmentEvents(
+        id: String,
+        onEnrollment: (VaultEnrollment) -> Unit,
+    ) = withContext(Dispatchers.IO) {
+        val tokens = store.loadTokens() ?: throw IllegalStateException("Portal Hub is not authenticated")
+        val response = http.newCall(
+            Request.Builder()
+                .url("${store.hubUrl}/api/vault/enrollments/${id.urlEncode()}/events")
+                .header("Authorization", "Bearer ${tokens.accessToken}")
+                .get()
+                .build(),
+        ).execute()
+        response.use {
+            it.throwIfFailed()
+            it.body?.charStream()?.buffered()?.useLines { lines ->
+                lines.forEach { line ->
+                    if (line.startsWith("data:")) {
+                        val payload = JSONObject(line.removePrefix("data:").trim())
+                        val enrollment = payload.optJSONObject("enrollment") ?: return@forEach
+                        onEnrollment(VaultEnrollment.fromJson(enrollment))
+                    }
+                }
+            }
+        }
     }
 
     suspend fun listSessions(): List<HubSession> {
@@ -356,8 +387,11 @@ data class VaultEnrollment(
     val deviceName: String,
     val status: String,
     val encryptedSecretBase64: String?,
+    val pairingId: String?,
     val createdAt: String,
     val updatedAt: String,
+    val approvedAt: String?,
+    val revokedAt: String?,
 ) {
     companion object {
         fun fromJson(json: JSONObject) = VaultEnrollment(
@@ -369,8 +403,15 @@ data class VaultEnrollment(
             } else {
                 null
             },
+            pairingId = if (json.has("pairing_id") && !json.isNull("pairing_id")) {
+                json.optString("pairing_id").ifBlank { null }
+            } else {
+                null
+            },
             createdAt = json.optString("created_at"),
             updatedAt = json.optString("updated_at"),
+            approvedAt = if (json.has("approved_at") && !json.isNull("approved_at")) json.optString("approved_at") else null,
+            revokedAt = if (json.has("revoked_at") && !json.isNull("revoked_at")) json.optString("revoked_at") else null,
         )
     }
 }

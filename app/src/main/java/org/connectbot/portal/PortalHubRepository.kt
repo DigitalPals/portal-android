@@ -87,6 +87,16 @@ class PortalHubRepository(
         store.clearVaultEnrollmentId()
     }
 
+    fun loadVaultDeviceEnrollmentId(): String? = store.loadVaultDeviceEnrollmentId()
+
+    fun saveVaultDeviceEnrollmentId(id: String) {
+        store.saveVaultDeviceEnrollmentId(id)
+    }
+
+    fun clearVaultDeviceEnrollmentId() {
+        store.clearVaultDeviceEnrollmentId()
+    }
+
     fun clearVaultEnrollmentKey() {
         store.clearVaultEnrollmentKey()
     }
@@ -110,10 +120,16 @@ class PortalHubRepository(
     suspend fun createVaultEnrollment(
         deviceName: String,
         publicKeyDerBase64: String,
+        pairingId: String?,
     ): VaultEnrollment =
-        client.createVaultEnrollment(deviceName, publicKeyDerBase64)
+        client.createVaultEnrollment(deviceName, publicKeyDerBase64, pairingId)
 
     suspend fun loadVaultEnrollment(id: String): VaultEnrollment = client.loadVaultEnrollment(id)
+
+    suspend fun streamVaultEnrollmentEvents(
+        id: String,
+        onEnrollment: (VaultEnrollment) -> Unit,
+    ) = client.streamVaultEnrollmentEvents(id, onEnrollment)
 
     suspend fun listSessions(): List<HubSession> = client.listSessions()
 
@@ -139,12 +155,24 @@ object PortalAndroidPairing {
     private const val SCHEME = "com.digitalpals.portal.android"
     private const val PAIR_PATH = "/pair"
 
-    fun hubUrlFrom(uri: android.net.Uri): String? {
+    data class Link(
+        val hubUrl: String,
+        val pairingId: String?,
+    )
+
+    fun from(uri: android.net.Uri): Link? {
         if (uri.scheme != SCHEME || uri.path != PAIR_PATH) return null
-        return uri.getQueryParameter("hub_url")
+        val hubUrl = uri.getQueryParameter("hub_url")
             ?.trim()
             ?.takeIf { it.isNotBlank() }
+            ?: return null
+        return Link(
+            hubUrl = hubUrl,
+            pairingId = uri.getQueryParameter("pairing_id")?.trim()?.takeIf { it.isNotBlank() },
+        )
     }
+
+    fun hubUrlFrom(uri: android.net.Uri): String? = from(uri)?.hubUrl
 }
 
 fun String.toHubSyncState(): HubSyncState {

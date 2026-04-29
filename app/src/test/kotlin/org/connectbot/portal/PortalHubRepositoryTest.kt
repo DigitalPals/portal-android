@@ -1,5 +1,6 @@
 package org.connectbot.portal
 
+import android.net.Uri
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.Test
@@ -39,6 +40,23 @@ class PortalHubRepositoryTest {
         assertThatThrownBy { PortalHubUrlNormalizer.normalize("   ") }
             .isInstanceOf(IllegalArgumentException::class.java)
             .hasMessage("Portal Hub URL is required")
+    }
+
+    @Test
+    fun parsesAndroidPairingHubUrl() {
+        val uri = Uri.parse(
+            "com.digitalpals.portal.android:/pair?hub_url=https%3A%2F%2Fhub.example.com%3A8080",
+        )
+
+        assertThat(PortalAndroidPairing.hubUrlFrom(uri))
+            .isEqualTo("https://hub.example.com:8080")
+    }
+
+    @Test
+    fun ignoresNonPairingAndroidLinks() {
+        val uri = Uri.parse("com.digitalpals.portal.android:/oauth2redirect?code=abc")
+
+        assertThat(PortalAndroidPairing.hubUrlFrom(uri)).isNull()
     }
 
     @Test

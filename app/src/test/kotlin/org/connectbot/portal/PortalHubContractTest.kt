@@ -48,6 +48,7 @@ class PortalHubContractTest {
             syncV2 = capabilities.getBoolean("sync_v2"),
             syncEvents = capabilities.getBoolean("sync_events"),
             keyVault = capabilities.getBoolean("key_vault"),
+            vaultEnrollment = capabilities.getBoolean("vault_enrollment"),
         )
 
         assertThat(info.apiVersion).isEqualTo(2)
@@ -55,6 +56,7 @@ class PortalHubContractTest {
         assertThat(info.syncV2).isTrue()
         assertThat(info.syncEvents).isTrue()
         assertThat(info.keyVault).isTrue()
+        assertThat(info.vaultEnrollment).isTrue()
     }
 
     @Test

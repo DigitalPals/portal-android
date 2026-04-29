@@ -17,7 +17,6 @@ class PortalMainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         viewModel = ViewModelProvider(this)[PortalViewModel::class.java]
-        handleOAuthRedirect(intent)
         setContent {
             val uriHandler = LocalUriHandler.current
             LaunchedEffect(Unit) {
@@ -27,18 +26,24 @@ class PortalMainActivity : ComponentActivity() {
                 PortalApp(viewModel)
             }
         }
+        handlePortalLink(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleOAuthRedirect(intent)
+        handlePortalLink(intent)
     }
 
-    private fun handleOAuthRedirect(intent: Intent?) {
+    private fun handlePortalLink(intent: Intent?) {
         val uri = intent?.data ?: return
-        if (uri.scheme == "com.digitalpals.portal.android" && uri.path == "/oauth2redirect") {
-            viewModel.completeSignIn(uri)
+        when {
+            uri.scheme == "com.digitalpals.portal.android" && uri.path == "/oauth2redirect" -> {
+                viewModel.completeSignIn(uri)
+            }
+            PortalAndroidPairing.hubUrlFrom(uri) != null -> {
+                viewModel.startPairing(uri)
+            }
         }
     }
 }

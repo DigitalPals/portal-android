@@ -89,6 +89,7 @@ class HubClient(
             syncV2 = capabilities.optBoolean("sync_v2"),
             syncEvents = capabilities.optBoolean("sync_events"),
             keyVault = capabilities.optBoolean("key_vault"),
+            vaultEnrollment = capabilities.optBoolean("vault_enrollment"),
         )
     }
 

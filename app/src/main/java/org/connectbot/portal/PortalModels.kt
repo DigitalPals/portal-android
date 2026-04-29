@@ -12,6 +12,7 @@ data class HubInfo(
     val syncV2: Boolean,
     val syncEvents: Boolean,
     val keyVault: Boolean,
+    val vaultEnrollment: Boolean,
 )
 
 data class HubTokens(

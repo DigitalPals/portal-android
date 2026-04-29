@@ -23,7 +23,7 @@ class PortalHubRepository(
     suspend fun checkHub(rawHubUrl: String): HubInfo {
         val hubUrl = PortalHubUrlNormalizer.normalize(rawHubUrl)
         val info = client.fetchInfo(hubUrl)
-        require(info.apiVersion >= 2 && info.webProxy && info.syncV2 && info.keyVault) {
+        require(info.apiVersion >= 2 && info.webProxy && info.syncV2 && info.keyVault && info.vaultEnrollment) {
             "Portal Hub ${info.version} does not advertise the required Android capabilities"
         }
         client.requireAndroidOAuthSupport(hubUrl, client.newPkce())
@@ -35,6 +35,9 @@ class PortalHubRepository(
         val hubUrl = PortalHubUrlNormalizer.normalize(rawHubUrl)
         val info = client.fetchInfo(hubUrl)
         require(info.apiVersion >= 2) { "Portal Hub API version ${info.apiVersion} is too old" }
+        require(info.keyVault && info.vaultEnrollment) {
+            "Portal Hub ${info.version} does not advertise Android vault access"
+        }
         val pkce = client.newPkce()
         client.requireAndroidOAuthSupport(hubUrl, pkce)
         store.hubUrl = hubUrl
@@ -129,6 +132,18 @@ object PortalHubUrlNormalizer {
             ":" in raw -> "https://$raw"
             else -> "https://$raw:8080"
         }
+    }
+}
+
+object PortalAndroidPairing {
+    private const val SCHEME = "com.digitalpals.portal.android"
+    private const val PAIR_PATH = "/pair"
+
+    fun hubUrlFrom(uri: android.net.Uri): String? {
+        if (uri.scheme != SCHEME || uri.path != PAIR_PATH) return null
+        return uri.getQueryParameter("hub_url")
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
     }
 }
 

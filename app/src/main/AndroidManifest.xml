@@ -68,6 +68,16 @@
 					android:scheme="com.digitalpals.portal.android"
 					android:path="/oauth2redirect"/>
 			</intent-filter>
+			<intent-filter>
+				<action android:name="android.intent.action.VIEW"/>
+
+				<category android:name="android.intent.category.DEFAULT"/>
+				<category android:name="android.intent.category.BROWSABLE"/>
+
+				<data
+					android:scheme="com.digitalpals.portal.android"
+					android:path="/pair"/>
+			</intent-filter>
 		</activity>
 
 		<service

@@ -285,7 +285,7 @@ private fun VaultSettingsScreen(state: PortalUiState, viewModel: PortalViewModel
                             ) {
                                 Icon(Icons.Filled.Refresh, contentDescription = null)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Check approval")
+                                Text("Check now")
                             }
                             if (state.vaultEnrollmentId != null) {
                                 TextButton(onClick = viewModel::resetVaultUnlockRequest, enabled = !state.loading) {

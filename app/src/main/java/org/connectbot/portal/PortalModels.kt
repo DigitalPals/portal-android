@@ -9,6 +9,7 @@ data class HubInfo(
     val version: String,
     val publicUrl: String,
     val webProxy: Boolean,
+    val sessionTitles: Boolean,
     val syncV2: Boolean,
     val syncEvents: Boolean,
     val keyVault: Boolean,
@@ -46,12 +47,25 @@ data class PortalSnippet(
 
 data class HubSession(
     val sessionId: String,
+    val displayName: String?,
     val targetHost: String,
     val targetPort: Int,
     val targetUser: String,
     val createdAt: String,
     val updatedAt: String,
-)
+) {
+    companion object {
+        fun fromJson(json: JSONObject) = HubSession(
+            sessionId = json.optString("session_id"),
+            displayName = json.optString("display_name").trim().ifEmpty { null },
+            targetHost = json.optString("target_host"),
+            targetPort = json.optInt("target_port", 22),
+            targetUser = json.optString("target_user"),
+            createdAt = json.optString("created_at"),
+            updatedAt = json.optString("updated_at"),
+        )
+    }
+}
 
 data class HubServiceState(
     val revision: String,

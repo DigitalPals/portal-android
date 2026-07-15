@@ -86,6 +86,7 @@ class HubClient(
             version = json.optString("version"),
             publicUrl = json.optString("public_url"),
             webProxy = capabilities.optBoolean("web_proxy"),
+            sessionTitles = capabilities.optBoolean("session_titles"),
             syncV2 = capabilities.optBoolean("sync_v2"),
             syncEvents = capabilities.optBoolean("sync_events"),
             keyVault = capabilities.optBoolean("key_vault"),
@@ -235,16 +236,7 @@ class HubClient(
         val sessions = json.optJSONArray("sessions") ?: return emptyList()
         return (0 until sessions.length())
             .mapNotNull { sessions.optJSONObject(it) }
-            .map {
-                HubSession(
-                    sessionId = it.optString("session_id"),
-                    targetHost = it.optString("target_host"),
-                    targetPort = it.optInt("target_port", 22),
-                    targetUser = it.optString("target_user"),
-                    createdAt = it.optString("created_at"),
-                    updatedAt = it.optString("updated_at"),
-                )
-            }
+            .map(HubSession::fromJson)
     }
 
     suspend fun killSession(sessionId: String) {

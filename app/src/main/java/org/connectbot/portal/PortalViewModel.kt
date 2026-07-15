@@ -540,7 +540,10 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     }
 
     fun resume(session: HubSession) {
-        openTerminal(HubClient.terminalTarget(session), "${session.targetUser}@${session.targetHost}")
+        openTerminal(
+            HubClient.terminalTarget(session),
+            session.displayName ?: "${session.targetUser}@${session.targetHost}",
+        )
     }
 
     fun killSession(session: HubSession) {

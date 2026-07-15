@@ -386,7 +386,9 @@ private fun SessionsScreen(state: PortalUiState, viewModel: PortalViewModel) {
                     it.port == session.targetPort &&
                     it.targetUser == session.targetUser
             }
-            val hostName = host?.name?.ifBlank { null } ?: session.targetHost
+            val hostName = session.displayName
+                ?: host?.name?.ifBlank { null }
+                ?: session.targetHost
             Card(
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 modifier = Modifier

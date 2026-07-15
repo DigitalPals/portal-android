@@ -32,6 +32,7 @@ class PortalHubContractTest {
                     .put("sync_v2", true)
                     .put("sync_events", true)
                     .put("web_proxy", true)
+                    .put("session_titles", true)
                     .put("key_vault", true)
                     .put("vault_enrollment", true),
             )
@@ -45,6 +46,7 @@ class PortalHubContractTest {
             version = instance.getString("version"),
             publicUrl = instance.getString("public_url"),
             webProxy = capabilities.getBoolean("web_proxy"),
+            sessionTitles = capabilities.getBoolean("session_titles"),
             syncV2 = capabilities.getBoolean("sync_v2"),
             syncEvents = capabilities.getBoolean("sync_events"),
             keyVault = capabilities.getBoolean("key_vault"),
@@ -53,10 +55,39 @@ class PortalHubContractTest {
 
         assertThat(info.apiVersion).isEqualTo(2)
         assertThat(info.webProxy).isTrue()
+        assertThat(info.sessionTitles).isTrue()
         assertThat(info.syncV2).isTrue()
         assertThat(info.syncEvents).isTrue()
         assertThat(info.keyVault).isTrue()
         assertThat(info.vaultEnrollment).isTrue()
+    }
+
+    @Test
+    fun sessionsContractMatchesPersistedDisplayNameParsing() {
+        val sessionId = "00000000-0000-0000-0000-000000000001"
+        val sessionJson = JSONObject()
+            .put("schema_version", 2)
+            .put("session_id", sessionId)
+            .put("session_name", "portal-$sessionId")
+            .put("display_name", "Production deploy")
+            .put("target_host", "example.internal")
+            .put("target_port", 22)
+            .put("target_user", "john")
+            .put("created_at", "2026-04-29T11:00:00Z")
+            .put("updated_at", "2026-04-29T11:30:00Z")
+            .put("ended_at", JSONObject.NULL)
+            .put("active", true)
+        val instance = JSONObject()
+            .put("api_version", 2)
+            .put("generated_at", "2026-04-29T12:00:00Z")
+            .put("sessions", JSONArray().put(sessionJson))
+
+        assertContract("sessions-response", instance)
+        val session = HubSession.fromJson(sessionJson)
+
+        assertThat(session.sessionId).isEqualTo(sessionId)
+        assertThat(session.displayName).isEqualTo("Production deploy")
+        assertThat(session.targetHost).isEqualTo("example.internal")
     }
 
     @Test

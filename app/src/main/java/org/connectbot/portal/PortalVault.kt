@@ -22,15 +22,13 @@ data class HubVaultConfig(
 
     fun findKey(id: String?): VaultKey? = keys.firstOrNull { it.id == id }
 
-    fun upsertKey(key: VaultKey): HubVaultConfig =
-        copy(keys = keys.filterNot { it.id == key.id } + key)
+    fun upsertKey(key: VaultKey): HubVaultConfig = copy(keys = keys.filterNot { it.id == key.id } + key)
 
-    fun renameKey(id: String, name: String): HubVaultConfig =
-        copy(
-            keys = keys.map {
-                if (it.id == id) it.copy(name = name, updatedAt = nowIso()) else it
-            },
-        )
+    fun renameKey(id: String, name: String): HubVaultConfig = copy(
+        keys = keys.map {
+            if (it.id == id) it.copy(name = name, updatedAt = nowIso()) else it
+        },
+    )
 
     fun deleteKey(id: String): HubVaultConfig = copy(keys = keys.filterNot { it.id == id })
 
@@ -189,11 +187,9 @@ object PortalVaultCrypto {
         )
     }
 
-    fun decryptPrivateKey(key: VaultKey, vaultSecret: String): String =
-        decryptEncryption(key.encryption, vaultSecret)
+    fun decryptPrivateKey(key: VaultKey, vaultSecret: String): String = decryptEncryption(key.encryption, vaultSecret)
 
-    fun decryptSecret(secret: VaultSecret, vaultSecret: String): String =
-        decryptEncryption(secret.encryption, vaultSecret)
+    fun decryptSecret(secret: VaultSecret, vaultSecret: String): String = decryptEncryption(secret.encryption, vaultSecret)
 
     private fun encryptBytes(plaintext: ByteArray, vaultSecret: String): VaultEncryption {
         val salt = ByteArray(SALT_LEN)
@@ -262,11 +258,24 @@ private fun JSONArray?.toObjectList(): List<JSONObject> {
     return (0 until length()).mapNotNull { optJSONObject(it) }
 }
 
-private fun JSONObject.optStringOrNull(name: String): String? =
-    if (has(name) && !isNull(name)) optString(name).ifBlank { null } else null
+/**
+ * Prove a candidate vault secret can decrypt the synced vault before storing
+ * it; throws if the secret is blank or fails against the first key or secret.
+ */
+internal fun validateVaultSecret(secret: String, vault: HubVaultConfig) {
+    require(secret.isNotBlank()) { "Vault secret is required" }
+    vault.keys.firstOrNull()?.let {
+        PortalVaultCrypto.decryptPrivateKey(it, secret)
+        return
+    }
+    vault.secrets.firstOrNull()?.let {
+        PortalVaultCrypto.decryptSecret(it, secret)
+    }
+}
 
-private fun JSONObject.putIfPresent(name: String, value: String?): JSONObject =
-    if (value == null) this else put(name, value)
+internal fun JSONObject.optStringOrNull(name: String): String? = if (has(name) && !isNull(name)) optString(name).ifBlank { null } else null
+
+private fun JSONObject.putIfPresent(name: String, value: String?): JSONObject = if (value == null) this else put(name, value)
 
 private fun encodeBase64(bytes: ByteArray): String = Base64.encodeToString(bytes, Base64.NO_WRAP)
 

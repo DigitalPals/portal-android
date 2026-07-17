@@ -1,32 +1,30 @@
 package org.connectbot.portal
 
+import android.app.Application
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.net.Uri
-import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class PortalViewModel(application: android.app.Application) : AndroidViewModel(application) {
-    private val store = PortalStore(application)
-    private val client = HubClient(store)
-    private val repository = PortalHubRepository(store, client)
+@HiltViewModel
+class PortalViewModel @Inject constructor(
+    application: Application,
+    private val store: PortalStore,
+    private val repository: PortalHubRepository,
+) : AndroidViewModel(application) {
     private var pendingPkce: HubClient.Pkce? = null
-    private var terminal: HubTerminal? = null
+    private var terminal: PortalTerminalHandle? = null
     private var terminalDetachRequested = false
-    private var vaultEnrollmentPollJob: Job? = null
-    private var vaultEnrollmentEventJob: Job? = null
-    private var vaultEnrollmentEventId: String? = null
     private var pendingPairingId: String? = null
 
     private val _state = MutableStateFlow(
@@ -43,12 +41,14 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     private val _authRequests = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val authRequests: SharedFlow<String> = _authRequests
 
+    private val enrollments = VaultEnrollmentManager(viewModelScope, repository, _state)
+
     init {
         viewModelScope.launch {
             loadCachedSync()
             if (store.hubUrl.isNotBlank() && store.loadTokens() != null) {
                 refreshAll()
-                repository.loadVaultEnrollmentId()?.let { startVaultEnrollmentPolling(it) }
+                repository.loadVaultEnrollmentId()?.let { enrollments.startPolling(it) }
             }
         }
     }
@@ -147,8 +147,7 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     fun signOut() {
         terminal?.close()
         terminal = null
-        stopVaultEnrollmentPolling()
-        stopVaultEnrollmentEvents()
+        enrollments.stop()
         repository.clearTokens()
         repository.clearVaultSecret()
         repository.clearVaultDeviceEnrollmentId()
@@ -329,13 +328,13 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         viewModelScope.launch {
             runBusy {
                 val enrollment = repository.loadVaultEnrollment(id)
-                handleVaultEnrollment(enrollment)
+                enrollments.handleEnrollment(enrollment)
             }
         }
     }
 
     fun resetVaultUnlockRequest() {
-        stopVaultEnrollmentPolling()
+        enrollments.stopPolling()
         repository.clearVaultEnrollmentId()
         repository.clearVaultEnrollmentKey()
         _state.update {
@@ -359,75 +358,6 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
             .getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("Portal vault public key", publicKey))
         _state.update { it.copy(vaultActionMessage = "Copied public key for ${key.name}", error = null) }
-    }
-
-    private fun handleVaultEnrollment(enrollment: VaultEnrollment) {
-        if (enrollment.status == "revoked") {
-            repository.clearVaultEnrollmentId()
-            repository.clearVaultEnrollmentKey()
-            if (repository.loadVaultDeviceEnrollmentId() == enrollment.id) {
-                repository.clearVaultSecret()
-                repository.clearVaultDeviceEnrollmentId()
-            }
-            stopVaultEnrollmentPolling()
-            stopVaultEnrollmentEvents()
-            _state.update {
-                it.copy(
-                    vaultSecretStored = repository.loadVaultSecret() != null,
-                    vaultEnrollmentId = null,
-                    vaultEnrollmentStatus = enrollment.status,
-                    vaultActionMessage = "Vault access was revoked in Portal desktop",
-                    error = null,
-                )
-            }
-            return
-        }
-        if (enrollment.status != "approved") {
-            _state.update {
-                it.copy(
-                    vaultEnrollmentId = enrollment.id,
-                    vaultEnrollmentStatus = enrollment.status,
-                    vaultActionMessage = "Vault access request is ${enrollment.status}",
-                    error = null,
-                )
-            }
-            return
-        }
-        val encrypted = enrollment.encryptedSecretBase64
-            ?: throw IllegalStateException("Approved vault request did not include an encrypted unlock key")
-        val secret = try {
-            repository.decryptVaultEnrollmentSecret(encrypted)
-        } catch (error: Throwable) {
-            repository.clearVaultEnrollmentId()
-            repository.clearVaultEnrollmentKey()
-            _state.update {
-                it.copy(
-                    vaultEnrollmentId = null,
-                    vaultEnrollmentStatus = null,
-                    vaultActionMessage = null,
-                )
-            }
-            throw IllegalStateException(
-                "Vault unlock failed. Request vault access again and approve the new request in Portal desktop.",
-                error,
-            )
-        }
-        validateVaultSecret(secret, state.value.sync?.vault ?: HubVaultConfig())
-        repository.saveVaultSecret(secret)
-        repository.saveVaultDeviceEnrollmentId(enrollment.id)
-        repository.clearVaultEnrollmentId()
-        stopVaultEnrollmentPolling()
-        stopVaultEnrollmentEvents()
-        _state.update {
-            it.copy(
-                vaultSecretStored = true,
-                vaultSecretInput = "",
-                vaultEnrollmentId = null,
-                vaultEnrollmentStatus = enrollment.status,
-                vaultActionMessage = "Vault unlock key stored on this device",
-                error = null,
-            )
-        }
     }
 
     fun openAddVaultKey() {
@@ -588,7 +518,7 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
                 error = null,
             )
         }
-        terminal = client.openTerminal(
+        terminal = repository.openTerminal(
             target,
             object : TerminalListener {
                 override fun onStarted() {
@@ -671,10 +601,10 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
             )
         }
         if (!snapshot.vaultSecretStored) {
-            snapshot.vaultEnrollmentId?.let { startVaultEnrollmentPolling(it) }
+            snapshot.vaultEnrollmentId?.let { enrollments.startPolling(it) }
         } else {
-            repository.loadVaultDeviceEnrollmentId()?.let { startVaultEnrollmentEvents(it) }
-            checkStoredVaultEnrollment()
+            repository.loadVaultDeviceEnrollmentId()?.let { enrollments.startEvents(it) }
+            enrollments.checkStoredEnrollment()
         }
         if (autoRequestVaultAccess) {
             maybeRequestVaultAccess(snapshot)
@@ -691,104 +621,9 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
     }
 
     private suspend fun createVaultUnlockRequest(message: String): VaultEnrollment {
-        val publicKey = repository.vaultEnrollmentPublicKeyBase64()
-        val deviceName = listOf(Build.MANUFACTURER, Build.MODEL)
-            .filter { it.isNotBlank() }
-            .joinToString(" ")
-            .ifBlank { "Android device" }
-        val enrollment = repository.createVaultEnrollment(deviceName, publicKey, pendingPairingId)
+        val enrollment = enrollments.createUnlockRequest(message, pendingPairingId)
         pendingPairingId = null
-        repository.saveVaultEnrollmentId(enrollment.id)
-        _state.update {
-            it.copy(
-                vaultEnrollmentId = enrollment.id,
-                vaultEnrollmentStatus = enrollment.status,
-                vaultActionMessage = message,
-                error = null,
-            )
-        }
-        startVaultEnrollmentPolling(enrollment.id)
-        startVaultEnrollmentEvents(enrollment.id)
         return enrollment
-    }
-
-    private fun startVaultEnrollmentPolling(id: String) {
-        if (id.isBlank()) return
-        if (vaultEnrollmentPollJob?.isActive == true && state.value.vaultEnrollmentId == id) return
-        vaultEnrollmentPollJob?.cancel()
-        vaultEnrollmentPollJob = viewModelScope.launch {
-            while (isActive && repository.loadVaultEnrollmentId() == id && repository.loadVaultSecret() == null) {
-                delay(VAULT_ENROLLMENT_POLL_INTERVAL_MS)
-                if (!isActive || repository.loadVaultEnrollmentId() != id || repository.loadVaultSecret() != null) {
-                    break
-                }
-                try {
-                    val enrollment = repository.loadVaultEnrollment(id)
-                    handleVaultEnrollment(enrollment)
-                    if (enrollment.status != "pending") {
-                        break
-                    }
-                } catch (error: Throwable) {
-                    _state.update { it.copy(error = error.message ?: error.toString()) }
-                }
-            }
-        }
-    }
-
-    private fun stopVaultEnrollmentPolling() {
-        vaultEnrollmentPollJob?.cancel()
-        vaultEnrollmentPollJob = null
-    }
-
-    private fun startVaultEnrollmentEvents(id: String) {
-        if (id.isBlank()) return
-        if (vaultEnrollmentEventJob?.isActive == true && vaultEnrollmentEventId == id) return
-        vaultEnrollmentEventJob?.cancel()
-        vaultEnrollmentEventId = id
-        vaultEnrollmentEventJob = viewModelScope.launch {
-            try {
-                repository.streamVaultEnrollmentEvents(id) { enrollment ->
-                    viewModelScope.launch {
-                        handleVaultEnrollmentEvent(enrollment)
-                    }
-                }
-            } catch (_: Throwable) {
-                // Polling remains the compatibility fallback for older Hub builds and transient network drops.
-            }
-        }
-    }
-
-    private fun stopVaultEnrollmentEvents() {
-        vaultEnrollmentEventJob?.cancel()
-        vaultEnrollmentEventJob = null
-        vaultEnrollmentEventId = null
-    }
-
-    private fun handleVaultEnrollmentEvent(enrollment: VaultEnrollment) {
-        if (enrollment.status == "revoked" && repository.loadVaultDeviceEnrollmentId() == enrollment.id) {
-            repository.clearVaultSecret()
-            repository.clearVaultDeviceEnrollmentId()
-            _state.update {
-                it.copy(
-                    vaultSecretStored = false,
-                    vaultEnrollmentStatus = enrollment.status,
-                    vaultActionMessage = "Vault access was revoked in Portal desktop",
-                    error = null,
-                )
-            }
-            return
-        }
-        if (repository.loadVaultEnrollmentId() == enrollment.id) {
-            handleVaultEnrollment(enrollment)
-        }
-    }
-
-    private suspend fun checkStoredVaultEnrollment() {
-        val id = repository.loadVaultDeviceEnrollmentId() ?: return
-        val enrollment = repository.loadVaultEnrollment(id)
-        if (enrollment.status == "revoked") {
-            handleVaultEnrollmentEvent(enrollment)
-        }
     }
 
     private suspend fun updateVault(vault: HubVaultConfig, message: String) {
@@ -816,17 +651,6 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         }
     }
 
-    private fun validateVaultSecret(secret: String, vault: HubVaultConfig) {
-        require(secret.isNotBlank()) { "Vault secret is required" }
-        vault.keys.firstOrNull()?.let {
-            PortalVaultCrypto.decryptPrivateKey(it, secret)
-            return
-        }
-        vault.secrets.firstOrNull()?.let {
-            PortalVaultCrypto.decryptSecret(it, secret)
-        }
-    }
-
     private suspend fun runBusy(block: suspend () -> Unit) {
         _state.update { it.copy(loading = true, error = null) }
         try {
@@ -836,10 +660,6 @@ class PortalViewModel(application: android.app.Application) : AndroidViewModel(a
         } finally {
             _state.update { it.copy(loading = false) }
         }
-    }
-
-    companion object {
-        private const val VAULT_ENROLLMENT_POLL_INTERVAL_MS = 5_000L
     }
 }
 
@@ -895,16 +715,14 @@ enum class SettingsSection {
     Account,
 }
 
-
 private fun String.ensureTrailingNewline(): String = if (endsWith("\n")) this else "$this\n"
 
-private fun PortalUiState.clearHostEditor(): PortalUiState =
-    copy(
-        editHostId = null,
-        editHostName = "",
-        editHostHostname = "",
-        editHostPort = "",
-        editHostUsername = "",
-        editHostPortalHubEnabled = false,
-        editHostVaultKeyId = null,
-    )
+private fun PortalUiState.clearHostEditor(): PortalUiState = copy(
+    editHostId = null,
+    editHostName = "",
+    editHostHostname = "",
+    editHostPort = "",
+    editHostUsername = "",
+    editHostPortalHubEnabled = false,
+    editHostVaultKeyId = null,
+)

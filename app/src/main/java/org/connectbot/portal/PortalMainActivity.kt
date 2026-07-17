@@ -1,22 +1,22 @@
 package org.connectbot.portal
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.ViewModelProvider
 import androidx.compose.ui.platform.LocalUriHandler
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class PortalMainActivity : ComponentActivity() {
-    private lateinit var viewModel: PortalViewModel
+    private val viewModel: PortalViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        viewModel = ViewModelProvider(this)[PortalViewModel::class.java]
         setContent {
             val uriHandler = LocalUriHandler.current
             LaunchedEffect(Unit) {
@@ -41,6 +41,7 @@ class PortalMainActivity : ComponentActivity() {
             uri.scheme == "com.digitalpals.portal.android" && uri.path == "/oauth2redirect" -> {
                 viewModel.completeSignIn(uri)
             }
+
             PortalAndroidPairing.hubUrlFrom(uri) != null -> {
                 viewModel.startPairing(uri)
             }

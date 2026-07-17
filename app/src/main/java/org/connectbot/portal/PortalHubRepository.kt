@@ -16,11 +16,74 @@ data class PortalRefreshSnapshot(
     val vaultEnrollmentId: String?,
 )
 
-class PortalHubRepository(
+interface PortalHubRepository {
+    suspend fun checkHub(rawHubUrl: String): HubInfo
+
+    suspend fun startSignIn(rawHubUrl: String): PortalSignInRequest
+
+    suspend fun completeSignIn(code: String, verifier: String)
+
+    suspend fun refreshAll(): PortalRefreshSnapshot
+
+    fun loadCachedSync(): HubSyncState?
+
+    fun loadVaultEnrollmentId(): String?
+
+    fun loadVaultSecret(): String?
+
+    fun saveVaultSecret(secret: String)
+
+    fun clearVaultSecret()
+
+    fun clearTokens()
+
+    fun clearVaultEnrollmentId()
+
+    fun loadVaultDeviceEnrollmentId(): String?
+
+    fun saveVaultDeviceEnrollmentId(id: String)
+
+    fun clearVaultDeviceEnrollmentId()
+
+    fun clearVaultEnrollmentKey()
+
+    fun loadOrCreateVaultSecret(vault: HubVaultConfig): String
+
+    fun vaultEnrollmentPublicKeyBase64(): String
+
+    fun saveVaultEnrollmentId(id: String)
+
+    fun decryptVaultEnrollmentSecret(encryptedSecretBase64: String): String
+
+    suspend fun putVault(vault: HubVaultConfig): HubSyncState
+
+    suspend fun putHosts(payload: JSONObject): HubSyncState
+
+    suspend fun createVaultEnrollment(
+        deviceName: String,
+        publicKeyDerBase64: String,
+        pairingId: String?,
+    ): VaultEnrollment
+
+    suspend fun loadVaultEnrollment(id: String): VaultEnrollment
+
+    suspend fun streamVaultEnrollmentEvents(
+        id: String,
+        onEnrollment: (VaultEnrollment) -> Unit,
+    )
+
+    suspend fun listSessions(): List<HubSession>
+
+    suspend fun killSession(sessionId: String)
+
+    fun openTerminal(target: TerminalTarget, listener: TerminalListener): PortalTerminalHandle
+}
+
+class DefaultPortalHubRepository(
     private val store: PortalStore,
     private val client: HubClient,
-) {
-    suspend fun checkHub(rawHubUrl: String): HubInfo {
+) : PortalHubRepository {
+    override suspend fun checkHub(rawHubUrl: String): HubInfo {
         val hubUrl = PortalHubUrlNormalizer.normalize(rawHubUrl)
         val info = client.fetchInfo(hubUrl)
         require(info.apiVersion >= 2 && info.webProxy && info.syncV2 && info.keyVault && info.vaultEnrollment) {
@@ -31,7 +94,7 @@ class PortalHubRepository(
         return info
     }
 
-    suspend fun startSignIn(rawHubUrl: String): PortalSignInRequest {
+    override suspend fun startSignIn(rawHubUrl: String): PortalSignInRequest {
         val hubUrl = PortalHubUrlNormalizer.normalize(rawHubUrl)
         val info = client.fetchInfo(hubUrl)
         require(info.apiVersion >= 2) { "Portal Hub API version ${info.apiVersion} is too old" }
@@ -48,11 +111,11 @@ class PortalHubRepository(
         )
     }
 
-    suspend fun completeSignIn(code: String, verifier: String) {
+    override suspend fun completeSignIn(code: String, verifier: String) {
         client.exchangeCode(store.hubUrl, code, verifier)
     }
 
-    suspend fun refreshAll(): PortalRefreshSnapshot {
+    override suspend fun refreshAll(): PortalRefreshSnapshot {
         val username = client.me()
         val sync = client.syncState()
         val sessions = client.listSessions()
@@ -65,77 +128,78 @@ class PortalHubRepository(
         )
     }
 
-    fun loadCachedSync(): HubSyncState? = store.loadSyncSnapshot()?.toHubSyncState()
+    override fun loadCachedSync(): HubSyncState? = store.loadSyncSnapshot()?.toHubSyncState()
 
-    fun loadVaultEnrollmentId(): String? = store.loadVaultEnrollmentId()
+    override fun loadVaultEnrollmentId(): String? = store.loadVaultEnrollmentId()
 
-    fun loadVaultSecret(): String? = store.loadVaultSecret()
+    override fun loadVaultSecret(): String? = store.loadVaultSecret()
 
-    fun saveVaultSecret(secret: String) {
+    override fun saveVaultSecret(secret: String) {
         store.saveVaultSecret(secret)
     }
 
-    fun clearVaultSecret() {
+    override fun clearVaultSecret() {
         store.clearVaultSecret()
     }
 
-    fun clearTokens() {
+    override fun clearTokens() {
         store.clearTokens()
     }
 
-    fun clearVaultEnrollmentId() {
+    override fun clearVaultEnrollmentId() {
         store.clearVaultEnrollmentId()
     }
 
-    fun loadVaultDeviceEnrollmentId(): String? = store.loadVaultDeviceEnrollmentId()
+    override fun loadVaultDeviceEnrollmentId(): String? = store.loadVaultDeviceEnrollmentId()
 
-    fun saveVaultDeviceEnrollmentId(id: String) {
+    override fun saveVaultDeviceEnrollmentId(id: String) {
         store.saveVaultDeviceEnrollmentId(id)
     }
 
-    fun clearVaultDeviceEnrollmentId() {
+    override fun clearVaultDeviceEnrollmentId() {
         store.clearVaultDeviceEnrollmentId()
     }
 
-    fun clearVaultEnrollmentKey() {
+    override fun clearVaultEnrollmentKey() {
         store.clearVaultEnrollmentKey()
     }
 
-    fun loadOrCreateVaultSecret(vault: HubVaultConfig): String =
-        store.loadOrCreateVaultSecret(vault)
+    override fun loadOrCreateVaultSecret(vault: HubVaultConfig): String = store.loadOrCreateVaultSecret(vault)
 
-    fun vaultEnrollmentPublicKeyBase64(): String = store.vaultEnrollmentPublicKeyBase64()
+    override fun vaultEnrollmentPublicKeyBase64(): String = store.vaultEnrollmentPublicKeyBase64()
 
-    fun saveVaultEnrollmentId(id: String) {
+    override fun saveVaultEnrollmentId(id: String) {
         store.saveVaultEnrollmentId(id)
     }
 
-    fun decryptVaultEnrollmentSecret(encryptedSecretBase64: String): String =
-        store.decryptVaultEnrollmentSecret(encryptedSecretBase64)
+    override fun decryptVaultEnrollmentSecret(encryptedSecretBase64: String): String = store.decryptVaultEnrollmentSecret(encryptedSecretBase64)
 
-    suspend fun putVault(vault: HubVaultConfig): HubSyncState = client.putVault(vault)
+    override suspend fun putVault(vault: HubVaultConfig): HubSyncState = client.putVault(vault)
 
-    suspend fun putHosts(payload: JSONObject): HubSyncState = client.putHosts(payload)
+    override suspend fun putHosts(payload: JSONObject): HubSyncState = client.putHosts(payload)
 
-    suspend fun createVaultEnrollment(
+    override suspend fun createVaultEnrollment(
         deviceName: String,
         publicKeyDerBase64: String,
         pairingId: String?,
-    ): VaultEnrollment =
-        client.createVaultEnrollment(deviceName, publicKeyDerBase64, pairingId)
+    ): VaultEnrollment = client.createVaultEnrollment(deviceName, publicKeyDerBase64, pairingId)
 
-    suspend fun loadVaultEnrollment(id: String): VaultEnrollment = client.loadVaultEnrollment(id)
+    override suspend fun loadVaultEnrollment(id: String): VaultEnrollment = client.loadVaultEnrollment(id)
 
-    suspend fun streamVaultEnrollmentEvents(
+    override suspend fun streamVaultEnrollmentEvents(
         id: String,
         onEnrollment: (VaultEnrollment) -> Unit,
-    ) = client.streamVaultEnrollmentEvents(id, onEnrollment)
+    ) {
+        client.streamVaultEnrollmentEvents(id, onEnrollment)
+    }
 
-    suspend fun listSessions(): List<HubSession> = client.listSessions()
+    override suspend fun listSessions(): List<HubSession> = client.listSessions()
 
-    suspend fun killSession(sessionId: String) {
+    override suspend fun killSession(sessionId: String) {
         client.killSession(sessionId)
     }
+
+    override fun openTerminal(target: TerminalTarget, listener: TerminalListener): PortalTerminalHandle = client.openTerminal(target, listener)
 }
 
 object PortalHubUrlNormalizer {
@@ -175,9 +239,7 @@ object PortalAndroidPairing {
     fun hubUrlFrom(uri: android.net.Uri): String? = from(uri)?.hubUrl
 }
 
-fun String.toHubSyncState(): HubSyncState {
-    return JSONObject(this).toHubSyncState()
-}
+fun String.toHubSyncState(): HubSyncState = JSONObject(this).toHubSyncState()
 
 fun JSONObject.toHubSyncState(): HubSyncState {
     val services = objectMap("services").mapValues { (_, service) ->

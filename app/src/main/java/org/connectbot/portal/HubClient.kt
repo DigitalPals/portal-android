@@ -23,9 +23,17 @@ class HubClient(
     private val http: OkHttpClient =
         OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
             .build(),
 ) {
+    // SSE and terminal WebSocket connections stay open indefinitely, so they
+    // must not inherit the plain-call read timeout.
+    private val streamingHttp: OkHttpClient =
+        http.newBuilder()
+            .readTimeout(0, TimeUnit.SECONDS)
+            .pingInterval(30, TimeUnit.SECONDS)
+            .build()
+
     data class Pkce(
         val state: String,
         val verifier: String,
@@ -94,26 +102,25 @@ class HubClient(
         )
     }
 
-    suspend fun exchangeCode(hubUrl: String, code: String, verifier: String): HubTokens =
-        withContext(Dispatchers.IO) {
-            val body = FormBody.Builder()
-                .add("grant_type", "authorization_code")
-                .add("code", code)
-                .add("redirect_uri", ANDROID_REDIRECT_URI)
-                .add("client_id", "portal-android")
-                .add("code_verifier", verifier)
-                .build()
-            val json = executeJson(
-                Request.Builder()
-                    .url("${hubUrl.trimEnd('/')}/oauth/token")
-                    .post(body)
-                    .build(),
-            )
-            HubTokens(
-                accessToken = json.getString("access_token"),
-                refreshToken = json.getString("refresh_token"),
-            ).also(store::saveTokens)
-        }
+    suspend fun exchangeCode(hubUrl: String, code: String, verifier: String): HubTokens = withContext(Dispatchers.IO) {
+        val body = FormBody.Builder()
+            .add("grant_type", "authorization_code")
+            .add("code", code)
+            .add("redirect_uri", ANDROID_REDIRECT_URI)
+            .add("client_id", "portal-android")
+            .add("code_verifier", verifier)
+            .build()
+        val json = executeJson(
+            Request.Builder()
+                .url("${hubUrl.trimEnd('/')}/oauth/token")
+                .post(body)
+                .build(),
+        )
+        HubTokens(
+            accessToken = json.getString("access_token"),
+            refreshToken = json.getString("refresh_token"),
+        ).also(store::saveTokens)
+    }
 
     suspend fun me(): String {
         val json = authorizedJson { token ->
@@ -138,13 +145,9 @@ class HubClient(
         return json.toHubSyncState()
     }
 
-    suspend fun putVault(vault: HubVaultConfig): HubSyncState {
-        return putSyncService("vault", vault.toJson())
-    }
+    suspend fun putVault(vault: HubVaultConfig): HubSyncState = putSyncService("vault", vault.toJson())
 
-    suspend fun putHosts(payload: JSONObject): HubSyncState {
-        return putSyncService("hosts", payload)
-    }
+    suspend fun putHosts(payload: JSONObject): HubSyncState = putSyncService("hosts", payload)
 
     private suspend fun putSyncService(name: String, payload: JSONObject): HubSyncState {
         val current = syncState()
@@ -208,7 +211,7 @@ class HubClient(
         onEnrollment: (VaultEnrollment) -> Unit,
     ) = withContext(Dispatchers.IO) {
         val tokens = store.loadTokens() ?: throw IllegalStateException("Portal Hub is not authenticated")
-        val response = http.newCall(
+        val response = streamingHttp.newCall(
             Request.Builder()
                 .url("${store.hubUrl}/api/vault/enrollments/${id.urlEncode()}/events")
                 .header("Authorization", "Bearer ${tokens.accessToken}")
@@ -260,34 +263,32 @@ class HubClient(
             .header("Authorization", "Bearer $token")
             .build()
         val terminal = HubTerminal(target, listener)
-        terminal.attach(http.newWebSocket(request, terminal))
+        terminal.attach(streamingHttp.newWebSocket(request, terminal))
         return terminal
     }
 
-    private suspend fun authorizedJson(builder: (String) -> Request): JSONObject =
-        withContext(Dispatchers.IO) {
-            val tokens = store.loadTokens() ?: throw IllegalStateException("Portal Hub is not authenticated")
-            val first = http.newCall(builder(tokens.accessToken)).execute()
-            if (first.code != 401) {
-                return@withContext first.use { it.jsonOrThrow() }
-            }
-            first.close()
-            val refreshed = refresh(tokens.refreshToken)
-            executeJson(builder(refreshed.accessToken))
+    private suspend fun authorizedJson(builder: (String) -> Request): JSONObject = withContext(Dispatchers.IO) {
+        val tokens = store.loadTokens() ?: throw IllegalStateException("Portal Hub is not authenticated")
+        val first = http.newCall(builder(tokens.accessToken)).execute()
+        if (first.code != 401) {
+            return@withContext first.use { it.jsonOrThrow() }
         }
+        first.close()
+        val refreshed = refresh(tokens.refreshToken)
+        executeJson(builder(refreshed.accessToken))
+    }
 
-    private suspend fun authorizedUnit(builder: (String) -> Request) =
-        withContext(Dispatchers.IO) {
-            val tokens = store.loadTokens() ?: throw IllegalStateException("Portal Hub is not authenticated")
-            val first = http.newCall(builder(tokens.accessToken)).execute()
-            if (first.code != 401) {
-                first.use { it.throwIfFailed() }
-                return@withContext
-            }
-            first.close()
-            val refreshed = refresh(tokens.refreshToken)
-            http.newCall(builder(refreshed.accessToken)).execute().use { it.throwIfFailed() }
+    private suspend fun authorizedUnit(builder: (String) -> Request) = withContext(Dispatchers.IO) {
+        val tokens = store.loadTokens() ?: throw IllegalStateException("Portal Hub is not authenticated")
+        val first = http.newCall(builder(tokens.accessToken)).execute()
+        if (first.code != 401) {
+            first.use { it.throwIfFailed() }
+            return@withContext
         }
+        first.close()
+        val refreshed = refresh(tokens.refreshToken)
+        http.newCall(builder(refreshed.accessToken)).execute().use { it.throwIfFailed() }
+    }
 
     private fun refresh(refreshToken: String): HubTokens {
         val body = FormBody.Builder()
@@ -307,13 +308,12 @@ class HubClient(
         ).also(store::saveTokens)
     }
 
-    private fun executeJson(request: Request): JSONObject =
-        http.newCall(request).execute().use { it.jsonOrThrow() }
+    private fun executeJson(request: Request): JSONObject = http.newCall(request).execute().use { it.jsonOrThrow() }
 
     private fun Response.jsonOrThrow(): JSONObject {
         val bodyText = body?.string().orEmpty()
         if (!isSuccessful) {
-            throw IllegalStateException("Portal Hub request failed (${code}): $bodyText")
+            throw IllegalStateException(failureMessage(bodyText))
         }
         return JSONObject(bodyText)
     }
@@ -321,7 +321,24 @@ class HubClient(
     private fun Response.throwIfFailed() {
         val bodyText = body?.string().orEmpty()
         if (!isSuccessful) {
-            throw IllegalStateException("Portal Hub request failed (${code}): $bodyText")
+            throw IllegalStateException(failureMessage(bodyText))
+        }
+    }
+
+    // Error text reaches the UI verbatim, so surface a structured server error
+    // when one exists instead of dumping the raw response body.
+    private fun Response.failureMessage(bodyText: String): String {
+        val detail = runCatching { JSONObject(bodyText) }.getOrNull()
+            ?.let { json ->
+                json.optStringOrNull("error_description")
+                    ?: json.optStringOrNull("error")
+                    ?: json.optStringOrNull("message")
+            }
+            ?.take(200)
+        return if (detail.isNullOrBlank()) {
+            "Portal Hub request failed ($code)"
+        } else {
+            "Portal Hub request failed ($code): $detail"
         }
     }
 
@@ -431,10 +448,21 @@ interface TerminalListener {
     fun onClosed()
 }
 
+interface PortalTerminalHandle {
+    fun send(text: String)
+
+    fun send(bytes: ByteArray)
+
+    fun resize(cols: Int, rows: Int)
+
+    fun close()
+}
+
 class HubTerminal(
     private val target: TerminalTarget,
     private val terminalListener: TerminalListener,
-) : WebSocketListener() {
+) : WebSocketListener(),
+    PortalTerminalHandle {
     private var webSocket: WebSocket? = null
 
     fun attach(webSocket: WebSocket) {
@@ -476,19 +504,19 @@ class HubTerminal(
         terminalListener.onClosed()
     }
 
-    fun send(text: String) {
+    override fun send(text: String) {
         webSocket?.send(ByteString.of(*text.toByteArray(Charsets.UTF_8)))
     }
 
-    fun send(bytes: ByteArray) {
+    override fun send(bytes: ByteArray) {
         webSocket?.send(ByteString.of(*bytes))
     }
 
-    fun resize(cols: Int, rows: Int) {
+    override fun resize(cols: Int, rows: Int) {
         webSocket?.send(JSONObject().put("type", "resize").put("cols", cols).put("rows", rows).toString())
     }
 
-    fun close() {
+    override fun close() {
         webSocket?.close(1000, "detached")
     }
 }

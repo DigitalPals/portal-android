@@ -6,16 +6,16 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import org.json.JSONObject
-import java.security.KeyStore
 import java.security.KeyPairGenerator
+import java.security.KeyStore
 import java.security.PrivateKey
 import java.security.spec.MGF1ParameterSpec
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
+import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.OAEPParameterSpec
 import javax.crypto.spec.PSource
-import javax.crypto.spec.GCMParameterSpec
 
 class PortalStore(context: Context) {
     private val prefs: SharedPreferences =
@@ -78,8 +78,7 @@ class PortalStore(context: Context) {
         prefs.edit().remove("vault_secret").apply()
     }
 
-    fun loadVaultEnrollmentId(): String? =
-        prefs.getString("vault_enrollment_id", null)
+    fun loadVaultEnrollmentId(): String? = prefs.getString("vault_enrollment_id", null)
 
     fun saveVaultEnrollmentId(id: String) {
         prefs.edit().putString("vault_enrollment_id", id).apply()
@@ -89,8 +88,7 @@ class PortalStore(context: Context) {
         prefs.edit().remove("vault_enrollment_id").apply()
     }
 
-    fun loadVaultDeviceEnrollmentId(): String? =
-        prefs.getString("vault_device_enrollment_id", null)
+    fun loadVaultDeviceEnrollmentId(): String? = prefs.getString("vault_device_enrollment_id", null)
 
     fun saveVaultDeviceEnrollmentId(id: String) {
         prefs.edit().putString("vault_device_enrollment_id", id).apply()
@@ -118,6 +116,9 @@ class PortalStore(context: Context) {
         val entry = keyStore().getEntry(VAULT_ENROLLMENT_KEY_ALIAS, null) as? KeyStore.PrivateKeyEntry
             ?: throw IllegalStateException("Vault enrollment key was not created")
         val cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
+        // MGF1 must stay SHA-1: AndroidKeystore only supports MGF1-SHA1 with an
+        // OAEP-SHA256 key, and Portal desktop encrypts to match
+        // (Oaep::new_with_mgf_hash::<Sha256, Sha1> in portal/src/hub/vault_enrollment.rs).
         cipher.init(
             Cipher.DECRYPT_MODE,
             entry.privateKey as PrivateKey,
@@ -207,8 +208,7 @@ class PortalStore(context: Context) {
         generator.generateKeyPair()
     }
 
-    private fun keyStore(): KeyStore =
-        KeyStore.getInstance("AndroidKeyStore").also { it.load(null) }
+    private fun keyStore(): KeyStore = KeyStore.getInstance("AndroidKeyStore").also { it.load(null) }
 
     companion object {
         private const val KEY_ALIAS = "portal_hub_tokens"

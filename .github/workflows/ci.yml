@@ -11,6 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check out Portal Hub contracts
+        uses: actions/checkout@v4
+        with:
+          repository: DigitalPals/portal-hub
+          path: portal-hub
+          sparse-checkout: contracts
+
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
@@ -24,9 +31,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Run Portal Android unit tests
-        run: |
-          ./gradlew testOssDebugUnitTest \
-            --tests org.connectbot.portal.PortalHubRepositoryTest \
-            --tests org.connectbot.portal.PortalHubContractTest \
-            --tests org.connectbot.portal.PortalVaultCryptoTest \
-            --rerun-tasks
+        env:
+          PORTAL_HUB_CONTRACT_DIR: ${{ github.workspace }}/portal-hub/contracts/portal-hub/v2
+          REQUIRE_PORTAL_HUB_CONTRACTS: "true"
+        run: ./gradlew testOssDebugUnitTest
+
+      - name: Build debug APK
+        run: ./gradlew assembleOssDebug

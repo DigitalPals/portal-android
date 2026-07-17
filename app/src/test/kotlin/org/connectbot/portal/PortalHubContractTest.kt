@@ -250,6 +250,13 @@ class PortalHubContractTest {
 
     private fun assertContract(schemaName: String, instance: JSONObject) {
         val schemaPath = schemaPath(schemaName)
+        if (!schemaPath.exists() && contractsRequired()) {
+            throw AssertionError(
+                "Portal Hub contract schema $schemaName not found at $schemaPath " +
+                    "but REQUIRE_PORTAL_HUB_CONTRACTS is set. " +
+                    "Check out portal-hub or set PORTAL_HUB_CONTRACT_DIR.",
+            )
+        }
         assumeTrue(
             "Set PORTAL_HUB_CONTRACT_DIR or check out portal-hub beside portal-android",
             schemaPath.exists(),
@@ -259,6 +266,9 @@ class PortalHubContractTest {
 
         assertThat(errors).isEmpty()
     }
+
+    private fun contractsRequired(): Boolean = System.getenv("REQUIRE_PORTAL_HUB_CONTRACTS") == "true" ||
+        System.getProperty("REQUIRE_PORTAL_HUB_CONTRACTS") == "true"
 
     private fun schemaPath(schemaName: String): Path {
         val configured = System.getenv("PORTAL_HUB_CONTRACT_DIR")

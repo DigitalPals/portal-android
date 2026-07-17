@@ -41,12 +41,17 @@ import org.connectbot.service.TerminalKeyListener
 import org.connectbot.terminal.DelKeyMode
 import org.connectbot.terminal.Terminal
 import org.connectbot.terminal.VTermKey
-import org.connectbot.ui.components.TERMINAL_KEYBOARD_HEIGHT_DP
 import org.connectbot.util.rememberTerminalTypefaceFromStoredValue
+
+const val TERMINAL_KEYBOARD_HEIGHT_DP = 30
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun TerminalScreen(state: PortalUiState, viewModel: PortalViewModel) {
+fun TerminalScreen(
+    state: PortalUiState,
+    viewModel: PortalViewModel,
+    modifier: Modifier = Modifier,
+) {
     val session = state.terminalSession
     val focusRequester = remember { FocusRequester() }
     val terminalTypeface = rememberTerminalTypefaceFromStoredValue(state.terminalFontFamily)
@@ -78,7 +83,7 @@ fun TerminalScreen(state: PortalUiState, viewModel: PortalViewModel) {
     }
 
     Box(
-        Modifier
+        modifier
             .fillMaxSize()
             .background(Color(0xFF050607)),
     ) {

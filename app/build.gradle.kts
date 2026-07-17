@@ -136,9 +136,6 @@ android {
     }
 
     sourceSets {
-        getByName("main") {
-            assets.directories.add("build/generated/exportSchema")
-        }
         getByName("test") {
             kotlin.srcDir("src/sharedTest/kotlin")
         }
@@ -165,22 +162,10 @@ android {
     }
 }
 
-ksp {
-    arg("room.schemaLocation", "$projectDir/schemas")
-}
-
 kover {
     reports {
         filters {
             excludes {
-                // Third-party code vendored in the source tree
-                packages(
-                    "de.mud.*",
-                    "com.google.ase",
-                    "org.apache.*",
-                    "org.keyczar.*",
-                    "org.openintents.*",
-                )
                 // Hilt/Dagger generated code
                 packages("dagger.*", "hilt_aggregated_deps")
                 classes(
@@ -194,13 +179,6 @@ kover {
                     "*_HiltComponents*",
                     "*Module_Provide*",
                     "*Module_Bind*",
-                )
-                // Room generated implementations
-                classes(
-                    "*_Impl",
-                    "*_Impl\$*",
-                    "*_AutoMigration_*",
-                    "*_AutoMigration_*\$*",
                 )
                 // Build config
                 classes("*.BuildConfig")
@@ -226,86 +204,12 @@ tasks.withType<JavaCompile>().configureEach {
         checks.put("ClassNewInstance", CheckSeverity.OFF)
         checks.put("DefaultCharset", CheckSeverity.OFF)
         checks.put("SynchronizeOnNonFinalField", CheckSeverity.OFF)
-        excludedPaths.set(".*/src/main/java/de/mud/.*|.*/src/main/java/org/apache/.*|.*/src/main/java/org/keyczar/.*")
     }
 }
 
 tasks.withType<Test>().configureEach {
     jvmArgs("--add-opens", "java.base/java.lang=ALL-UNNAMED")
 }
-
-// Generate filtered export schema from Room schema
-// Only includes tables needed for export/import (profiles, hosts, port_forwards)
-val generateExportSchema by tasks.registering {
-    val exportTables = setOf("profiles", "hosts", "port_forwards")
-    val excludedFields = setOf("last_connect", "host_key_algo")
-
-    // Read schema version from ConnectBotDatabase.kt to avoid duplicate definitions
-    val databaseFile = file("src/main/java/org/connectbot/data/ConnectBotDatabase.kt")
-    val schemaVersion =
-        databaseFile
-            .readText()
-            .let { Regex("""const val SCHEMA_VERSION\s*=\s*(\d+)""").find(it) }
-            ?.groupValues
-            ?.get(1)
-            ?.toInt()
-            ?: error("Could not find SCHEMA_VERSION in $databaseFile")
-    val inputFile = file("schemas/org.connectbot.data.ConnectBotDatabase/$schemaVersion.json")
-    val outputDir = file("build/generated/exportSchema")
-    val outputFile = file("$outputDir/export_schema.json")
-
-    inputs.file(inputFile)
-    outputs.file(outputFile)
-
-    doLast {
-        val inputJson = groovy.json.JsonSlurper().parseText(inputFile.readText()) as Map<*, *>
-        val database = inputJson["database"] as Map<*, *>
-        val entities = database["entities"] as List<*>
-
-        // Filter entities to only include export tables
-        val filteredEntities =
-            entities
-                .filter { entity ->
-                    val entityMap = entity as Map<*, *>
-                    entityMap["tableName"] in exportTables
-                }.map { entity ->
-                    val entityMap = (entity as Map<*, *>).toMutableMap()
-                    // Mark excluded fields instead of removing them (needed for NOT NULL defaults)
-                    val fields = entityMap["fields"] as List<*>
-                    entityMap["fields"] =
-                        fields.map { field ->
-                            val fieldMap = (field as Map<*, *>).toMutableMap()
-                            if (fieldMap["columnName"] in excludedFields) {
-                                fieldMap["excluded"] = true
-                            }
-                            fieldMap
-                        }
-                    entityMap
-                }
-
-        val filteredSchema =
-            mapOf(
-                "formatVersion" to inputJson["formatVersion"],
-                "database" to
-                    mapOf(
-                        "version" to database["version"],
-                        "entities" to filteredEntities,
-                    ),
-            )
-
-        outputDir.mkdirs()
-        outputFile.writeText(groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(filteredSchema)))
-    }
-}
-
-// Ensure export schema is generated before tasks that read from the assets directory
-tasks
-    .matching {
-        (it.name.contains("merge") && it.name.contains("Assets")) ||
-            it.name.contains("Lint", ignoreCase = true)
-    }.configureEach {
-        dependsOn(generateExportSchema)
-    }
 
 // Do not want any release candidates for updates.
 tasks.withType<DependencyUpdatesTask>().configureEach {
@@ -339,18 +243,10 @@ tasks.withType<DependencyUpdatesTask>().configureEach {
 }
 
 dependencies {
-    implementation(libs.sshlib)
     implementation(libs.termlib)
-    implementation(libs.androidx.media3.common.ktx)
-    implementation(libs.androidx.navigation.testing)
-    implementation(libs.androidx.ui)
-    "googleImplementation"(libs.play.services.basement)
-    "ossImplementation"(libs.conscrypt.android)
 
-    implementation(libs.androidx.recyclerview)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.appcompat.resources)
-    implementation(libs.androidx.preference)
     implementation(libs.material)
     implementation(libs.timber)
 
@@ -362,15 +258,9 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.activity.compose)
 
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
-
     implementation(libs.hilt.android)
-    implementation(libs.androidx.hilt.navigation.compose)
     ksp(libs.hilt.android.compiler)
 
     androidTestImplementation(libs.hilt.android.testing)
@@ -381,7 +271,6 @@ dependencies {
     testImplementation(libs.androidx.compose.ui.test)
     testImplementation(libs.androidx.compose.ui.test.junit4)
 
-    implementation(libs.androidx.biometric)
     implementation(libs.androidx.core)
     implementation(libs.okhttp)
     implementation(libs.bouncycastle)
@@ -394,14 +283,8 @@ dependencies {
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(libs.androidx.test.runner)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.espresso.intents)
-    androidTestImplementation(libs.androidx.espresso.contrib) {
-        exclude(group = "com.google.android.apps.common.testing.accessibility.framework", module = "accessibility-test-framework")
-    }
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.assertj.core)
 
     androidTestUtil(libs.androidx.test.orchestrator)
 
@@ -414,11 +297,6 @@ dependencies {
     testImplementation(libs.json.schema.validator)
     testImplementation(libs.robolectric)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.androidx.room.testing)
-
-    testCompileOnly(libs.conscrypt.openjdk.uber)
-    testRuntimeOnly(libs.conscrypt.android)
-    testImplementation(libs.conscrypt.openjdk.uber)
 
     errorprone(libs.errorprone.core)
 }

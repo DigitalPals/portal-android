@@ -67,7 +67,7 @@ class PortalViewModelTest {
         advanceUntilIdle()
 
         assertThat(vm.state.value.hubUrl).isEqualTo("https://hub.example")
-        assertThat(vm.state.value.selected).isEqualTo(PortalTab.Setup)
+        assertThat(vm.state.value.stage).isEqualTo(PortalStage.HubSetup)
         assertThat(vm.state.value.error).isNull()
         assertThat(repository.signInHubUrls).containsExactly("https://hub.example")
         assertThat(authUrls).containsExactly("https://hub.example/authorize")
@@ -98,7 +98,7 @@ class PortalViewModelTest {
     }
 
     @Test
-    fun `completeSignIn refreshes hub state and leaves setup tab`() = runTest(dispatcher) {
+    fun `completeSignIn refreshes hub state and advances onboarding`() = runTest(dispatcher) {
         repository.syncJson = SYNC_WITHOUT_VAULT
         val vm = viewModel()
         vm.startPairing(pairingUri(pairingId = null))
@@ -111,8 +111,18 @@ class PortalViewModelTest {
         assertThat(vm.state.value.signedInUser).isEqualTo("john")
         assertThat(vm.state.value.hosts).hasSize(1)
         assertThat(vm.state.value.sessions).hasSize(1)
-        assertThat(vm.state.value.selected).isEqualTo(PortalTab.Hosts)
+        // Empty hub vault: the device seeds its own vault secret and the enroll
+        // step shows its completed state.
+        assertThat(vm.state.value.stage).isEqualTo(PortalStage.Enroll)
+        assertThat(vm.state.value.vaultSecretStored).isTrue()
         assertThat(vm.state.value.error).isNull()
+
+        vm.continueFromEnroll()
+        assertThat(vm.state.value.stage).isEqualTo(PortalStage.Services)
+
+        vm.finishOnboarding()
+        assertThat(vm.state.value.stage).isEqualTo(PortalStage.App)
+        assertThat(vm.state.value.selected).isEqualTo(PortalTab.Hosts)
     }
 
     @Test
@@ -238,14 +248,19 @@ class PortalViewModelTest {
 
         assertThat(repository.openedTargets).hasSize(1)
         assertThat(repository.openedTargets.single().targetHost).isEqualTo("prod.example.com")
-        assertThat(vm.state.value.selected).isEqualTo(PortalTab.Terminal)
-        assertThat(vm.state.value.terminalStatus).isEqualTo("Connecting...")
-        assertThat(vm.state.value.terminalSession).isNotNull()
+        assertThat(vm.state.value.view).isEqualTo(PortalView.Terminal)
+        assertThat(vm.state.value.terminalTabs).hasSize(1)
+        assertThat(vm.state.value.activeTab!!.status).startsWith("Connecting")
 
         repository.lastTerminalListener!!.onStarted()
         runCurrent()
-        assertThat(vm.state.value.terminalConnected).isTrue()
-        assertThat(vm.state.value.terminalStatus).isEqualTo("Connected")
+        assertThat(vm.state.value.activeTab!!.connected).isTrue()
+
+        // Connecting to the same host again reuses the existing tab.
+        vm.connect(host())
+        runCurrent()
+        assertThat(repository.openedTargets).hasSize(1)
+        assertThat(vm.state.value.terminalTabs).hasSize(1)
     }
 
     @Test
@@ -275,23 +290,158 @@ class PortalViewModelTest {
 
         assertThat(repository.openedTargets).isEmpty()
         assertThat(vm.state.value.error)
-            .isEqualTo("Only SSH hosts with Portal Hub enabled can be opened on Android")
+            .isEqualTo("Only SSH hosts can be opened on Android")
     }
 
     @Test
-    fun `detachTerminal closes the handle and returns to sessions`() = runTest(dispatcher) {
+    fun `closed terminal removes its tab and returns to hosts`() = runTest(dispatcher) {
         val vm = viewModel()
         vm.connect(host())
         runCurrent()
 
-        vm.detachTerminal()
         repository.lastTerminalListener!!.onClosed()
         advanceUntilIdle()
 
+        assertThat(vm.state.value.terminalTabs).isEmpty()
+        assertThat(vm.state.value.view).isNull()
+        assertThat(vm.state.value.selected).isEqualTo(PortalTab.Hosts)
+    }
+
+    @Test
+    fun `vault host shows an unlocking tab and decrypt failure cleans it up`() = runTest(dispatcher) {
+        repository.syncJson = SYNC_WITH_VAULT
+        repository.vaultSecret = "stored-secret"
+        val vm = viewModel()
+        vm.cryptoDispatcher = dispatcher
+        vm.startPairing(pairingUri(pairingId = null))
+        advanceUntilIdle()
+        vm.completeSignIn(redirectUri())
+        advanceUntilIdle()
+
+        vm.connect(host(vaultKeyId = "key-1"))
+
+        // The tab and its progress indicator appear before key decryption runs.
+        assertThat(vm.state.value.view).isEqualTo(PortalView.Terminal)
+        assertThat(vm.state.value.terminalTabs).hasSize(1)
+        assertThat(vm.state.value.activeTab!!.status).isEqualTo("Unlocking key…")
+
+        advanceUntilIdle()
+
+        // The fixture key is not decryptable with this secret: the pending tab
+        // is removed and the failure surfaces as an error.
+        assertThat(repository.openedTargets).isEmpty()
+        assertThat(vm.state.value.terminalTabs).isEmpty()
+        assertThat(vm.state.value.view).isNull()
+        assertThat(vm.state.value.error).isNotNull()
+    }
+
+    @Test
+    fun `host key verification prompts and trust responds over the socket`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.connect(host())
+        runCurrent()
+
+        repository.lastTerminalListener!!.onHostKeyVerification(
+            HostKeyVerification(
+                host = "prod.example.com",
+                port = 22,
+                fingerprint = "SHA256:abc",
+                keyType = "ssh-ed25519",
+                oldFingerprint = null,
+            ),
+        )
+        runCurrent()
+        assertThat(vm.state.value.hostKeyPrompt).isNotNull()
+        assertThat(vm.state.value.hostKeyPrompt!!.fingerprint).isEqualTo("SHA256:abc")
+
+        vm.respondHostKey(true)
+        runCurrent()
+        assertThat(repository.terminalHandle.hostKeyResponses).containsExactly(true)
+        assertThat(vm.state.value.hostKeyPrompt).isNull()
+        assertThat(vm.state.value.terminalTabs).hasSize(1)
+    }
+
+    @Test
+    fun `host key denial closes the pending tab`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.connect(host())
+        runCurrent()
+
+        repository.lastTerminalListener!!.onHostKeyVerification(
+            HostKeyVerification("prod.example.com", 22, "SHA256:abc", "ssh-ed25519", null),
+        )
+        runCurrent()
+
+        vm.respondHostKey(false)
+        runCurrent()
+
+        assertThat(repository.terminalHandle.hostKeyResponses).containsExactly(false)
         assertThat(repository.terminalHandle.closed).isTrue()
-        assertThat(vm.state.value.selected).isEqualTo(PortalTab.Sessions)
-        assertThat(vm.state.value.terminalSession).isNull()
-        assertThat(vm.state.value.terminalStatus).isEqualTo("Detached")
+        assertThat(vm.state.value.terminalTabs).isEmpty()
+        assertThat(vm.state.value.view).isNull()
+    }
+
+    @Test
+    fun `runSnippet with a single attached session sends the command`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.connect(host())
+        runCurrent()
+
+        vm.runSnippet(PortalSnippet(id = "snip-1", name = "Disk usage", command = "df -h"))
+        runCurrent()
+
+        val sent = repository.terminalHandle.sent.map { it.toString(Charsets.UTF_8) }
+        assertThat(sent).containsExactly("df -h\n")
+        assertThat(vm.state.value.toast).contains("Snippet sent")
+    }
+
+    @Test
+    fun `runSnippet without sessions shows guidance`() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        vm.runSnippet(PortalSnippet(id = "snip-1", name = "Disk usage", command = "df -h"))
+        runCurrent()
+
+        assertThat(repository.terminalHandle.sent).isEmpty()
+        assertThat(vm.state.value.toast).contains("open a host first")
+    }
+
+    @Test
+    fun `saveNewHost appends the host and syncs it to the hub`() = runTest(dispatcher) {
+        repository.syncJson = SYNC_WITHOUT_VAULT
+        val vm = viewModel()
+        vm.startPairing(pairingUri(pairingId = null))
+        advanceUntilIdle()
+        vm.completeSignIn(redirectUri())
+        advanceUntilIdle()
+
+        vm.openNewHost()
+        vm.updateNewHostName("media")
+        vm.updateNewHostAddress("media-01.internal")
+        vm.updateNewHostUsername("ops")
+        vm.saveNewHost()
+        advanceUntilIdle()
+
+        assertThat(repository.putHostsPayloads).hasSize(1)
+        val hosts = repository.putHostsPayloads.single().getJSONArray("hosts")
+        assertThat(hosts.length()).isEqualTo(2)
+        val added = hosts.getJSONObject(1)
+        assertThat(added.getString("name")).isEqualTo("media")
+        assertThat(added.getString("hostname")).isEqualTo("media-01.internal")
+        assertThat(added.getBoolean("portal_hub_enabled")).isTrue()
+        assertThat(vm.state.value.view).isNull()
+    }
+
+    @Test
+    fun `saveNewHost validates the address`() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        vm.openNewHost()
+        vm.saveNewHost()
+        runCurrent()
+
+        assertThat(vm.state.value.error).isEqualTo("Address is required")
+        assertThat(repository.putHostsPayloads).isEmpty()
     }
 
     // --- host editing ---
@@ -372,7 +522,7 @@ class PortalViewModelTest {
         assertThat(repository.vaultSecret).isNull()
         assertThat(vm.state.value.signedInUser).isNull()
         assertThat(vm.state.value.hosts).isEmpty()
-        assertThat(vm.state.value.selected).isEqualTo(PortalTab.Setup)
+        assertThat(vm.state.value.stage).isEqualTo(PortalStage.Welcome)
     }
 
     private fun host(
@@ -386,8 +536,8 @@ class PortalViewModelTest {
         port = 22,
         username = "deploy",
         protocol = protocol,
-        portalHubEnabled = true,
         vaultKeyId = vaultKeyId,
+        groupId = null,
         raw = JSONObject(),
     )
 
@@ -487,6 +637,12 @@ private class FakeTerminalHandle : PortalTerminalHandle {
     }
 
     override fun resize(cols: Int, rows: Int) = Unit
+
+    val hostKeyResponses = mutableListOf<Boolean>()
+
+    override fun respondHostKey(accepted: Boolean) {
+        hostKeyResponses += accepted
+    }
 
     override fun close() {
         closed = true
@@ -656,7 +812,7 @@ private class FakePortalHubRepository : PortalHubRepository {
         // Events are exercised through polling in these tests.
     }
 
-    override suspend fun listSessions(): List<HubSession> = sessions.toList()
+    override suspend fun listSessions(includePreview: Boolean): List<HubSession> = sessions.toList()
 
     override suspend fun killSession(sessionId: String) {
         killedSessionIds += sessionId

@@ -9,6 +9,38 @@ Hub protocol support stabilize.
 
 ### Changed
 
+- Redesigned the entire app to the "Portal Android" dark design handoff:
+  a mandatory onboarding flow (welcome → hub check via `/api/info` → browser
+  OAuth → vault enrollment with editable device name → sync service
+  selection), a five-tab shell (Hosts / Sessions / Snippets / Ports /
+  Settings), grouped host lists with search and a new-host form, session
+  cards with Hub terminal previews, snippet run sheets, and a terminal with
+  session tabs, status header, and an extra-keys row. Ports is a placeholder
+  until the Hub exposes a port-forwarding API.
+- The terminal now supports multiple simultaneous Hub sessions in tabs;
+  leaving the terminal keeps sessions attached, and ending a session from the
+  Sessions tab signals the Hub.
+
+### Added
+
+- Host key verification: the app now answers the Hub's
+  `host_key_verification` terminal WebSocket message with a fingerprint
+  confirmation sheet (`host_key_response`), including changed-key warnings.
+- Session previews: `/api/sessions` is queried with `include_preview` and the
+  trailing log lines are rendered on session cards.
+- Hosts can be created from the app and synced back to the Hub
+  (`PUT /api/sync/v2` hosts service), including vault-key auth selection and
+  host groups parsed from the synced profile.
+- Portal Hub is treated as mandatory: every SSH host is connectable, the
+  per-host "Use Portal Hub" toggles were removed, and any host created or
+  edited on Android is written back with `portal_hub_enabled: true`.
+- Closing the last terminal session now returns to the Hosts tab instead of
+  Sessions.
+- Vault key decryption (Argon2id) moved off the main thread: tapping a
+  vault-key host now immediately opens the terminal with an "unlocking vault
+  key…" indicator instead of freezing the hosts list for several seconds, and
+  a decryption failure cleans up the pending tab with a visible error.
+
 - Removed the unreachable legacy ConnectBot code paths (classic UI graph,
   SSH/Telnet/local transports, Room database layer, terminal service stack,
   and vendored third-party sources) along with their dependencies; the app is

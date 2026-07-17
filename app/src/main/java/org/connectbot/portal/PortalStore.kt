@@ -43,6 +43,32 @@ class PortalStore(context: Context) {
             prefs.edit().putFloat("terminal_font_size", value.coerceIn(6f, 30f)).apply()
         }
 
+    // Onboarding is complete once the user finished the services step; before
+    // that the app resumes the welcome flow on launch.
+    var onboarded: Boolean
+        get() = prefs.getBoolean("onboarded", false)
+        set(value) {
+            prefs.edit().putBoolean("onboarded", value).apply()
+        }
+
+    var enabledServices: Set<String>
+        get() = prefs.getStringSet("enabled_services", null) ?: DEFAULT_SERVICES
+        set(value) {
+            prefs.edit().putStringSet("enabled_services", value).apply()
+        }
+
+    var enrollmentDeviceName: String
+        get() = prefs.getString("enrollment_device_name", "") ?: ""
+        set(value) {
+            prefs.edit().putString("enrollment_device_name", value.trim()).apply()
+        }
+
+    var lastSyncAtMillis: Long
+        get() = prefs.getLong("last_sync_at", 0L)
+        set(value) {
+            prefs.edit().putLong("last_sync_at", value).apply()
+        }
+
     fun loadTokens(): HubTokens? {
         val encrypted = prefs.getString("tokens", null) ?: return null
         val raw = decrypt(encrypted)
@@ -213,7 +239,8 @@ class PortalStore(context: Context) {
     companion object {
         private const val KEY_ALIAS = "portal_hub_tokens"
         private const val VAULT_ENROLLMENT_KEY_ALIAS = "portal_vault_enrollment_rsa"
-        const val DEFAULT_TERMINAL_FONT_FAMILY = "SYSTEM_DEFAULT"
-        const val DEFAULT_TERMINAL_FONT_SIZE = 10f
+        const val DEFAULT_TERMINAL_FONT_FAMILY = "JETBRAINS_MONO"
+        const val DEFAULT_TERMINAL_FONT_SIZE = 12f
+        val DEFAULT_SERVICES = setOf("hosts", "settings", "snippets", "vault", "sessions")
     }
 }

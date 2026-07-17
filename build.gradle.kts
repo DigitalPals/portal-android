@@ -48,6 +48,8 @@ spotless {
         target("app/src/**/*.kt")
         ktlint("1.8.0")
             .customRuleSets(listOf("io.nlopez.compose.rules:ktlint:0.5.7"))
+            // Portal screens follow a screen(state, viewModel) convention throughout.
+            .editorConfigOverride(mapOf("ktlint_compose_vm-forwarding-check" to "disabled"))
     }
 
     groovyGradle {

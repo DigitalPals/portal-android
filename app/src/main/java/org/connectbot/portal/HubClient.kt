@@ -228,10 +228,15 @@ class HubClient(
         }
     }
 
-    suspend fun listSessions(): List<HubSession> {
+    suspend fun listSessions(includePreview: Boolean = false): List<HubSession> {
+        val query = if (includePreview) {
+            "active=true&include_preview=true&preview_bytes=$SESSION_PREVIEW_BYTES"
+        } else {
+            "active=true"
+        }
         val json = authorizedJson { token ->
             Request.Builder()
-                .url("${store.hubUrl}/api/sessions?active=true")
+                .url("${store.hubUrl}/api/sessions?$query")
                 .header("Authorization", "Bearer $token")
                 .get()
                 .build()
@@ -350,6 +355,7 @@ class HubClient(
 
     companion object {
         const val ANDROID_REDIRECT_URI = "com.digitalpals.portal.android:/oauth2redirect"
+        const val SESSION_PREVIEW_BYTES = 4096
 
         fun terminalTarget(host: PortalHost) = TerminalTarget(
             sessionId = UUID.randomUUID().toString(),
@@ -434,6 +440,24 @@ data class VaultEnrollment(
     }
 }
 
+data class HostKeyVerification(
+    val host: String,
+    val port: Int,
+    val fingerprint: String,
+    val keyType: String,
+    val oldFingerprint: String?,
+) {
+    companion object {
+        fun fromJson(json: JSONObject) = HostKeyVerification(
+            host = json.optString("host"),
+            port = json.optInt("port", 22),
+            fingerprint = json.optString("fingerprint"),
+            keyType = json.optString("key_type"),
+            oldFingerprint = json.optString("old_fingerprint").ifBlank { null },
+        )
+    }
+}
+
 interface TerminalListener {
     fun onStarted()
 
@@ -442,6 +466,10 @@ interface TerminalListener {
     fun onOutput(bytes: ByteArray) {
         onOutput(bytes.toString(Charsets.UTF_8))
     }
+
+    // Hub asks the client to confirm an unknown or changed target host key
+    // before it trusts the key in the Hub's known_hosts.
+    fun onHostKeyVerification(request: HostKeyVerification) {}
 
     fun onError(message: String)
 
@@ -454,6 +482,8 @@ interface PortalTerminalHandle {
     fun send(bytes: ByteArray)
 
     fun resize(cols: Int, rows: Int)
+
+    fun respondHostKey(accepted: Boolean)
 
     fun close()
 }
@@ -487,6 +517,7 @@ class HubTerminal(
             "started" -> terminalListener.onStarted()
             "error" -> terminalListener.onError(json.optString("message", text))
             "closed", "exit", "exited" -> terminalListener.onClosed()
+            "host_key_verification" -> terminalListener.onHostKeyVerification(HostKeyVerification.fromJson(json))
             else -> terminalListener.onOutput(text)
         }
     }
@@ -514,6 +545,10 @@ class HubTerminal(
 
     override fun resize(cols: Int, rows: Int) {
         webSocket?.send(JSONObject().put("type", "resize").put("cols", cols).put("rows", rows).toString())
+    }
+
+    override fun respondHostKey(accepted: Boolean) {
+        webSocket?.send(JSONObject().put("type", "host_key_response").put("accepted", accepted).toString())
     }
 
     override fun close() {

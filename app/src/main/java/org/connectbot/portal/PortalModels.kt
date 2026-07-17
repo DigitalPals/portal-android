@@ -28,12 +28,13 @@ data class PortalHost(
     val port: Int,
     val username: String,
     val protocol: String,
-    val portalHubEnabled: Boolean,
     val vaultKeyId: String?,
+    val groupId: String?,
     val raw: JSONObject,
 ) {
+    // Portal Hub is the app's only transport, so every SSH host is connectable.
     val connectable: Boolean
-        get() = protocol == "ssh" && portalHubEnabled
+        get() = protocol == "ssh"
 
     val targetUser: String
         get() = username.trim().ifEmpty { "root" }
@@ -53,6 +54,7 @@ data class HubSession(
     val targetUser: String,
     val createdAt: String,
     val updatedAt: String,
+    val previewLines: List<String> = emptyList(),
 ) {
     companion object {
         fun fromJson(json: JSONObject) = HubSession(
@@ -63,9 +65,33 @@ data class HubSession(
             targetUser = json.optString("target_user"),
             createdAt = json.optString("created_at"),
             updatedAt = json.optString("updated_at"),
+            previewLines = previewLines(json.optString("preview_base64")),
         )
+
+        // The Hub preview is raw terminal log output; strip ANSI/OSC control
+        // sequences so the session card can show plain trailing lines.
+        fun previewLines(previewBase64: String?, maxLines: Int = 3): List<String> {
+            if (previewBase64.isNullOrBlank()) return emptyList()
+            val raw = runCatching {
+                String(java.util.Base64.getMimeDecoder().decode(previewBase64), Charsets.UTF_8)
+            }.getOrNull() ?: return emptyList()
+            return raw
+                .replace(Regex("\u001B\\][^\u0007\u001B]*(\u0007|\u001B\\\\)"), "")
+                .replace(Regex("\u001B[\\[\\]()#;?]*[0-9;]*[A-Za-z@^_`~]"), "")
+                .replace(Regex("[\u0000-\u0008\u000B-\u001F\u007F]"), "")
+                .split("\n")
+                .map { it.trimEnd('\r', ' ') }
+                .filter { it.isNotBlank() }
+                .takeLast(maxLines)
+        }
     }
 }
+
+data class PortalHostGroup(
+    val id: String?,
+    val name: String,
+    val hosts: List<PortalHost>,
+)
 
 data class HubServiceState(
     val revision: String,
@@ -91,11 +117,39 @@ data class HubSyncState(
                         port = host.optInt("port", 22),
                         username = host.optString("username"),
                         protocol = host.optString("protocol", "ssh"),
-                        portalHubEnabled = host.optBoolean("portal_hub_enabled", false),
                         vaultKeyId = auth?.optString("vault_key_id")?.ifEmpty { null },
+                        groupId = host.optString("group_id").ifEmpty { null },
                         raw = host,
                     )
                 }
+        }
+
+    // Groups come from the synced Portal desktop profile; hosts that reference
+    // no group (or an unknown one) fall into a trailing default section.
+    val hostGroups: List<PortalHostGroup>
+        get() {
+            val allHosts = hosts
+            val payload = services["hosts"]?.payload
+            val groupArray = payload?.optJSONArray("groups")
+            val declared = if (groupArray == null) {
+                emptyList()
+            } else {
+                (0 until groupArray.length())
+                    .mapNotNull { groupArray.optJSONObject(it) }
+                    .mapNotNull { group ->
+                        val id = group.optString("id").ifEmpty { null } ?: return@mapNotNull null
+                        val name = group.optString("name").ifEmpty { id }
+                        PortalHostGroup(id = id, name = name, hosts = allHosts.filter { it.groupId == id })
+                    }
+                    .filter { it.hosts.isNotEmpty() }
+            }
+            val groupedIds = declared.flatMap { group -> group.hosts.map { it.id } }.toSet()
+            val ungrouped = allHosts.filter { it.id !in groupedIds }
+            return if (ungrouped.isEmpty()) {
+                declared
+            } else {
+                declared + PortalHostGroup(id = null, name = if (declared.isEmpty()) "Hosts" else "Other", hosts = ungrouped)
+            }
         }
 
     val snippets: List<PortalSnippet>
@@ -122,13 +176,46 @@ data class HubSyncState(
     val vault: HubVaultConfig
         get() = HubVaultConfig.fromJson(services["vault"]?.payload)
 
+    fun addHost(
+        name: String,
+        hostname: String,
+        port: Int,
+        username: String,
+        vaultKeyId: String?,
+    ): JSONObject {
+        val currentPayload = services["hosts"]?.payload ?: JSONObject()
+        val updatedPayload = JSONObject(currentPayload.toString())
+        val updatedHosts = updatedPayload.optJSONArray("hosts") ?: JSONArray()
+        val host = JSONObject()
+            .put("id", UUID.randomUUID().toString())
+            .put("name", name)
+            .put("hostname", hostname)
+            .put("port", port)
+            .put("username", username)
+            .put("protocol", "ssh")
+            // Portal Hub is mandatory on Android; hosts are always hub-enabled.
+            .put("portal_hub_enabled", true)
+        if (!vaultKeyId.isNullOrBlank()) {
+            host.put(
+                "auth",
+                JSONObject()
+                    .put("type", "public_key")
+                    .put("vault_key_id", vaultKeyId),
+            )
+        }
+        updatedHosts.put(host)
+        if (!updatedPayload.has("groups")) {
+            updatedPayload.put("groups", JSONArray())
+        }
+        return updatedPayload.put("hosts", updatedHosts)
+    }
+
     fun updateHost(
         id: String,
         name: String,
         hostname: String,
         port: Int,
         username: String,
-        portalHubEnabled: Boolean,
         vaultKeyId: String?,
     ): JSONObject {
         val currentPayload = services["hosts"]?.payload ?: JSONObject()
@@ -147,7 +234,7 @@ data class HubSyncState(
                     .put("hostname", hostname)
                     .put("port", port)
                     .put("username", username)
-                    .put("portal_hub_enabled", portalHubEnabled)
+                    .put("portal_hub_enabled", true)
                 val auth = updatedHost.optJSONObject("auth")?.let { JSONObject(it.toString()) }
                     ?: JSONObject()
                 if (vaultKeyId.isNullOrBlank()) {
@@ -177,5 +264,4 @@ fun JSONObject.objectMap(name: String): Map<String, JSONObject> {
     return root.keys().asSequence().associateWith { root.getJSONObject(it) }
 }
 
-fun JSONArray?.toStringList(): List<String> =
-    if (this == null) emptyList() else (0 until length()).map { optString(it) }
+fun JSONArray?.toStringList(): List<String> = if (this == null) emptyList() else (0 until length()).map { optString(it) }

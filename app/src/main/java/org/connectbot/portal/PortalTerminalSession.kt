@@ -35,4 +35,9 @@ class PortalTerminalSession(
             emulator.writeInput(data, 0, data.size)
         }
     }
+
+    // Extra-keys row characters bypass the IME and go straight to the remote.
+    fun sendText(text: String) {
+        onInput(text.toByteArray(Charsets.UTF_8))
+    }
 }

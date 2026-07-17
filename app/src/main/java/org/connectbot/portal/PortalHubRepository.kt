@@ -72,7 +72,7 @@ interface PortalHubRepository {
         onEnrollment: (VaultEnrollment) -> Unit,
     )
 
-    suspend fun listSessions(): List<HubSession>
+    suspend fun listSessions(includePreview: Boolean = false): List<HubSession>
 
     suspend fun killSession(sessionId: String)
 
@@ -118,7 +118,7 @@ class DefaultPortalHubRepository(
     override suspend fun refreshAll(): PortalRefreshSnapshot {
         val username = client.me()
         val sync = client.syncState()
-        val sessions = client.listSessions()
+        val sessions = client.listSessions(includePreview = true)
         return PortalRefreshSnapshot(
             username = username,
             sync = sync,
@@ -193,7 +193,7 @@ class DefaultPortalHubRepository(
         client.streamVaultEnrollmentEvents(id, onEnrollment)
     }
 
-    override suspend fun listSessions(): List<HubSession> = client.listSessions()
+    override suspend fun listSessions(includePreview: Boolean): List<HubSession> = client.listSessions(includePreview)
 
     override suspend fun killSession(sessionId: String) {
         client.killSession(sessionId)

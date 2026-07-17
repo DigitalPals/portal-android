@@ -23,13 +23,10 @@ class VaultEnrollmentManager(
     private var eventJob: Job? = null
     private var eventEnrollmentId: String? = null
 
-    suspend fun createUnlockRequest(message: String, pairingId: String?): VaultEnrollment {
+    suspend fun createUnlockRequest(message: String, pairingId: String?, deviceName: String? = null): VaultEnrollment {
         val publicKey = repository.vaultEnrollmentPublicKeyBase64()
-        val deviceName = listOf(Build.MANUFACTURER, Build.MODEL)
-            .filter { it.isNotBlank() }
-            .joinToString(" ")
-            .ifBlank { "Android device" }
-        val enrollment = repository.createVaultEnrollment(deviceName, publicKey, pairingId)
+        val resolvedName = deviceName?.trim()?.ifBlank { null } ?: defaultDeviceName()
+        val enrollment = repository.createVaultEnrollment(resolvedName, publicKey, pairingId)
         repository.saveVaultEnrollmentId(enrollment.id)
         state.update {
             it.copy(
@@ -197,5 +194,10 @@ class VaultEnrollmentManager(
 
     companion object {
         private const val POLL_INTERVAL_MS = 5_000L
+
+        fun defaultDeviceName(): String = listOf(Build.MANUFACTURER, Build.MODEL)
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+            .ifBlank { "Android device" }
     }
 }

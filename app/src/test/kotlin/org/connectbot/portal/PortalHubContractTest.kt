@@ -182,7 +182,6 @@ class PortalHubContractTest {
             hostname = "prod.example.com",
             port = 22,
             username = "deploy",
-            portalHubEnabled = true,
             vaultKeyId = "key-1",
         )
         val request = JSONObject()
@@ -222,6 +221,29 @@ class PortalHubContractTest {
             .put("private_key", target.privateKey)
 
         assertContract("terminal-start-request", request)
+    }
+
+    @Test
+    fun hostKeyControlMessagesMatchAndroidHandling() {
+        val verification = JSONObject()
+            .put("type", "host_key_verification")
+            .put("host", "example.internal")
+            .put("port", 22)
+            .put("fingerprint", "SHA256:Kf3qYzTn8Wx1uNb7dRq2mV9cJhL4pE6sA0iBvGnXo5M")
+            .put("key_type", "ssh-ed25519")
+        assertContract("terminal-control-message", verification)
+
+        val parsed = HostKeyVerification.fromJson(verification)
+        assertThat(parsed.host).isEqualTo("example.internal")
+        assertThat(parsed.port).isEqualTo(22)
+        assertThat(parsed.keyType).isEqualTo("ssh-ed25519")
+        assertThat(parsed.oldFingerprint).isNull()
+
+        // The response Android sends back over the terminal WebSocket.
+        val response = JSONObject()
+            .put("type", "host_key_response")
+            .put("accepted", true)
+        assertContract("terminal-control-message", response)
     }
 
     @Test

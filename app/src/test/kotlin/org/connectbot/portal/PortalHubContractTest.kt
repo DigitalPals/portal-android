@@ -197,6 +197,9 @@ class PortalHubContractTest {
                     ),
             )
 
+        val updatedHost = payload.getJSONArray("hosts").getJSONObject(0)
+        assertThat(updatedHost.getString("hub_routing")).isEqualTo("hub")
+        assertThat(updatedHost.has("portal_hub_enabled")).isFalse()
         assertContract("sync-v2-put-request", request)
     }
 

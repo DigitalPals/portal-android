@@ -194,7 +194,7 @@ data class HubSyncState(
             .put("username", username)
             .put("protocol", "ssh")
             // Portal Hub is mandatory on Android; hosts are always hub-enabled.
-            .put("portal_hub_enabled", true)
+            .put("hub_routing", "hub")
         if (!vaultKeyId.isNullOrBlank()) {
             host.put(
                 "auth",
@@ -226,7 +226,7 @@ data class HubSyncState(
 
         for (index in 0 until currentHosts.length()) {
             val currentHost = currentHosts.optJSONObject(index) ?: continue
-            val updatedHost = JSONObject(currentHost.toString())
+            val updatedHost = JSONObject(currentHost.toString()).normalizeHubRouting()
             if (updatedHost.optString("id") == id) {
                 found = true
                 updatedHost
@@ -234,7 +234,6 @@ data class HubSyncState(
                     .put("hostname", hostname)
                     .put("port", port)
                     .put("username", username)
-                    .put("portal_hub_enabled", true)
                 val auth = updatedHost.optJSONObject("auth")?.let { JSONObject(it.toString()) }
                     ?: JSONObject()
                 if (vaultKeyId.isNullOrBlank()) {
@@ -256,6 +255,19 @@ data class HubSyncState(
 
         require(found) { "Host was not found in the synced Portal Hub hosts" }
         return updatedPayload.put("hosts", updatedHosts)
+    }
+
+    private fun JSONObject.normalizeHubRouting(): JSONObject {
+        if (has("hub_routing")) {
+            remove("portal_hub_enabled")
+            return this
+        }
+        if (has("portal_hub_enabled")) {
+            val routing = if (optBoolean("portal_hub_enabled")) "hub" else "auto"
+            remove("portal_hub_enabled")
+            put("hub_routing", routing)
+        }
+        return this
     }
 }
 

@@ -146,6 +146,7 @@ class PortalHubRepositoryTest {
                         "port": 2222,
                         "username": "deploy",
                         "protocol": "ssh",
+                        "hub_routing": "direct",
                         "portal_hub_enabled": true,
                         "custom_desktop_field": "keep-me",
                         "auth": {
@@ -175,8 +176,8 @@ class PortalHubRepositoryTest {
         assertThat(updatedHost.getString("hostname")).isEqualTo("staging.example.com")
         assertThat(updatedHost.getInt("port")).isEqualTo(2200)
         assertThat(updatedHost.getString("username")).isEqualTo("admin")
-        // Android always re-asserts the hub flag: the app cannot run without it.
-        assertThat(updatedHost.getBoolean("portal_hub_enabled")).isTrue()
+        assertThat(updatedHost.getString("hub_routing")).isEqualTo("direct")
+        assertThat(updatedHost.has("portal_hub_enabled")).isFalse()
         assertThat(updatedHost.getString("protocol")).isEqualTo("ssh")
         assertThat(updatedHost.getString("custom_desktop_field")).isEqualTo("keep-me")
         assertThat(updatedHost.getJSONObject("auth").getString("type")).isEqualTo("public_key")

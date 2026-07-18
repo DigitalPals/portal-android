@@ -33,7 +33,7 @@ Hub protocol support stabilize.
   host groups parsed from the synced profile.
 - Portal Hub is treated as mandatory: every SSH host is connectable, the
   per-host "Use Portal Hub" toggles were removed, and any host created or
-  edited on Android is written back with `portal_hub_enabled: true`.
+  edited on Android is written back with canonical `hub_routing` metadata.
 - Closing the last terminal session now returns to the Hosts tab instead of
   Sessions.
 - Vault key decryption (Argon2id) moved off the main thread: tapping a

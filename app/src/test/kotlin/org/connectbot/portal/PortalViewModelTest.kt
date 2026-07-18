@@ -428,7 +428,8 @@ class PortalViewModelTest {
         val added = hosts.getJSONObject(1)
         assertThat(added.getString("name")).isEqualTo("media")
         assertThat(added.getString("hostname")).isEqualTo("media-01.internal")
-        assertThat(added.getBoolean("portal_hub_enabled")).isTrue()
+        assertThat(added.getString("hub_routing")).isEqualTo("hub")
+        assertThat(added.has("portal_hub_enabled")).isFalse()
         assertThat(vm.state.value.view).isNull()
     }
 
